@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --nudge-bg: #FAF7F2;
+    --nudge-card: #FFFFFF;
+    --nudge-border: #EDE8DF;
+    --nudge-text: #1C1A17;
+    --nudge-text-sec: #756F67;
+    --nudge-blue: #2E62F6;
+  }
+
+  .dark {
+    --nudge-bg: #181614;
+    --nudge-card: #22201D;
+    --nudge-border: #3C3730;
+    --nudge-text: #EDE8DF;
+    --nudge-text-sec: #9F988D;
+    --nudge-blue: #507DFE;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Smooth subtle transitions */
+* {
+  border-color: var(--nudge-border);
+}
+
+/* Custom subtle scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(117, 111, 103, 0.2);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(117, 111, 103, 0.35);
+}
