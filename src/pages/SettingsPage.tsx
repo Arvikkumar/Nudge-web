@@ -200,12 +200,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header section with Editorial Title */}
+      {/* Header section with Editorial Title matching SettingsScreen.kt */}
       <div className="space-y-1">
-        <h1 className="font-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal">
-          Settings
+        <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight">
+          Settings that
         </h1>
-        <p className="text-xs sm:text-sm text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
+        <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-blue dark:text-nudge-blue-light font-normal leading-tight">
+          fit your rhythm.
+        </h1>
+        <p className="text-xs sm:text-sm text-nudge-text-secondary dark:text-nudge-text-secondary-dark pt-1">
           Customize your quiet rhythm, appearance, and data preferences.
         </p>
       </div>

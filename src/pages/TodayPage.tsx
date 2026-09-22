@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Send, Clock, Sparkles, Calendar as CalendarIcon, ChevronLeft, ChevronRight, MapPin, Search, X } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { Send, Clock, Sparkles, Calendar as CalendarIcon, ChevronLeft, ChevronRight, MapPin, Search, X, Mic } from 'lucide-react';
 import { NudgeTask } from '../types';
 import { TaskCard } from '../components/tasks/TaskCard';
 import { CreateTaskInput } from '../hooks/useNudgeTasks';
@@ -249,6 +249,57 @@ export const TodayPage: React.FC<TodayPageProps> = ({
     }
   };
 
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const handleToggleVoice = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice input is not supported in this browser.");
+      return;
+    }
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join('');
+        setQuickInput(transcript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error('Failed to start speech recognition:', err);
+      setIsListening(false);
+    }
+  };
+
   // Heading text
   const headingDateText = useMemo(() => {
     if (selectedDateIso === todayIso) {
@@ -276,15 +327,15 @@ export const TodayPage: React.FC<TodayPageProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Hero Parchment Banner */}
-      <section className="relative overflow-hidden rounded-3xl bg-nudge-parchment dark:bg-nudge-parchment-dark border border-nudge-border/80 dark:border-nudge-border-dark/80 p-6 sm:p-7 shadow-xs">
+      <section className="relative overflow-hidden rounded-[24px] bg-nudge-parchment dark:bg-nudge-parchment-dark border border-nudge-border/80 dark:border-nudge-border-dark/80 p-6 sm:p-7 shadow-xs">
         <div className="absolute -right-8 -bottom-10 w-44 h-44 rounded-full bg-nudge-cream dark:bg-nudge-card-dark opacity-60 pointer-events-none" />
 
         <div className="relative flex items-start justify-between gap-4">
-          <div className="max-w-[75%] space-y-1.5">
-            <h1 className="font-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight">
+          <div className="max-w-[76%] space-y-1">
+            <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight">
               What deserves
             </h1>
-            <h1 className="font-serif text-3xl sm:text-4xl text-nudge-blue font-normal leading-tight">
+            <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-blue dark:text-nudge-blue-light font-normal leading-tight">
               your attention?
             </h1>
             <p className="text-xs sm:text-sm text-nudge-text-secondary dark:text-nudge-text-secondary-dark pt-1">
@@ -295,10 +346,10 @@ export const TodayPage: React.FC<TodayPageProps> = ({
           <button
             onClick={handleJumpToToday}
             title="Return to Today"
-            className="w-14 h-14 rounded-full bg-nudge-blue text-white flex flex-col items-center justify-center shrink-0 shadow-md hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+            className="w-[54px] h-[54px] rounded-full bg-nudge-blue text-white flex flex-col items-center justify-center shrink-0 shadow-md hover:opacity-90 active:scale-95 transition-all cursor-pointer"
           >
-            <span className="text-xl font-bold leading-none">{dayNumber}</span>
-            <span className="text-[10px] font-semibold tracking-wider opacity-90 mt-0.5">
+            <span className="text-[20px] font-bold leading-none">{dayNumber}</span>
+            <span className="text-[9px] font-semibold tracking-wider opacity-90 mt-0.5 uppercase">
               {monthAbbr}
             </span>
           </button>
@@ -617,23 +668,28 @@ export const TodayPage: React.FC<TodayPageProps> = ({
           </>
         ) : (
           <>
-            {/* Normal Date-specific Header */}
+            {/* Normal Date-specific Header matching TodayScreen.kt */}
             <div className="flex items-center justify-between px-1">
-              <h2 className="text-sm font-semibold tracking-wide text-nudge-text-secondary dark:text-nudge-text-secondary-dark uppercase">
-                {headingDateText}
-              </h2>
-              <span className="text-xs font-medium text-nudge-text-muted dark:text-nudge-text-muted-dark">
+              <div>
+                <span className="text-[11px] font-bold tracking-[1.2px] uppercase text-nudge-text-secondary dark:text-nudge-text-secondary-dark block">
+                  {selectedDateIso === todayIso ? "TODAY'S NUDGES" : headingDateText.toUpperCase()}
+                </span>
+                <h2 className="font-editorial-serif text-2xl font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark mt-0.5">
+                  Keep these close
+                </h2>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-nudge-blue/10 text-nudge-blue dark:bg-nudge-blue/20 dark:text-nudge-blue-light">
                 {activeTasks.length} active
               </span>
             </div>
 
             {activeTasks.length === 0 && completedTasks.length === 0 ? (
-              <div className="text-center py-8 bg-white dark:bg-nudge-card-dark rounded-2xl border border-nudge-border dark:border-nudge-border-dark p-6">
-                <p className="text-sm font-medium text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                  No gentle nudges for this day.
+              <div className="text-center py-10 bg-white dark:bg-nudge-card-dark rounded-[18px] border border-nudge-border dark:border-nudge-border-dark p-6 space-y-1.5">
+                <p className="text-sm font-medium text-nudge-text-primary dark:text-nudge-text-primary-dark">
+                  Your day is quiet and clear.
                 </p>
-                <p className="text-xs text-nudge-text-muted mt-1">
-                  Add a peaceful thought or reminder below.
+                <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
+                  Take a breath, or write down a gentle thought.
                 </p>
               </div>
             ) : (
@@ -674,16 +730,32 @@ export const TodayPage: React.FC<TodayPageProps> = ({
         )}
       </section>
 
-      {/* Quick Add Bar with Natural Language Support */}
-      <section className="bg-white dark:bg-nudge-card-dark rounded-2xl border border-nudge-border dark:border-nudge-border-dark p-2 shadow-xs space-y-1.5">
+      {/* Quick Add Bar with Natural Language & Voice Support matching QuickCaptureBar.kt */}
+      <section className="bg-white dark:bg-nudge-card-dark rounded-[18px] border border-nudge-border dark:border-nudge-border-dark p-2 shadow-xs space-y-1.5">
         <form onSubmit={handleQuickAdd} className="flex items-center gap-2">
+          {/* LEFT: Microphone / voice recording button */}
+          <button
+            type="button"
+            onClick={handleToggleVoice}
+            className={`p-2 rounded-xl transition-all ${
+              isListening
+                ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 animate-pulse'
+                : 'text-nudge-blue hover:bg-nudge-blue/10 dark:hover:bg-nudge-blue/20'
+            }`}
+            title={isListening ? 'Listening…' : 'Speak reminder'}
+            data-testid="quick_capture_mic_button"
+          >
+            <Mic className="w-4 h-4 stroke-[2]" />
+          </button>
+
           <input
             type="text"
             value={quickInput}
             onChange={(e) => setQuickInput(e.target.value)}
-            placeholder="Try: 'Call mummy tonight' or 'Water plants in 30 minutes'…"
+            placeholder="Add a quick thought…"
             disabled={isSubmitting}
-            className="flex-1 px-3 py-2 text-sm bg-transparent text-nudge-text-primary dark:text-nudge-text-primary-dark placeholder:text-nudge-text-muted focus:outline-none"
+            className="flex-1 px-2 py-2 text-sm bg-transparent text-nudge-text-primary dark:text-nudge-text-primary-dark placeholder:text-nudge-text-muted focus:outline-none"
+            data-testid="quick_capture_input"
           />
           <button
             type="submit"

@@ -52,25 +52,39 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
   return (
     <div
-      className={`group relative flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-xs transition-all hover:border-nudge-blue/40 ${
-        isDone ? 'opacity-60 bg-nudge-cream/60 dark:bg-nudge-dark/60' : ''
+      className={`group relative flex items-center justify-between p-3.5 sm:p-4 rounded-[18px] bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-xs transition-all hover:border-nudge-blue/40 overflow-hidden ${
+        isDone ? 'opacity-65 bg-nudge-cream/60 dark:bg-nudge-dark/60' : ''
       }`}
+      data-testid={`task_item_${task.id}`}
     >
-      <div className="flex items-center gap-3.5 flex-1 min-w-0">
-        {/* Toggle Checkbox Button */}
+      {/* Left vertical colored accent stripe matching TaskSlipItem.kt */}
+      <div
+        className={`absolute left-1 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full transition-colors ${
+          isDone
+            ? 'bg-nudge-blue/35 dark:bg-nudge-blue/35'
+            : 'bg-nudge-blue dark:bg-nudge-blue-light'
+        }`}
+        aria-hidden="true"
+      />
+
+      <div className="flex items-center gap-3.5 flex-1 min-w-0 pl-1.5">
+        {/* Android-styled circular Checkbox */}
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onToggleDone(task.id, targetDateIso);
           }}
-          className="text-nudge-blue hover:scale-110 transition-transform shrink-0 focus:outline-none"
+          className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-nudge-blue/10 dark:hover:bg-nudge-blue/20 transition-all focus:outline-none"
           aria-label={isDone ? 'Mark incomplete' : 'Mark complete'}
+          data-testid={`task_check_${task.id}`}
         >
           {isDone ? (
-            <CheckCircle2 className="w-5 h-5 text-nudge-blue fill-nudge-blue-container dark:fill-nudge-blue-container-dark" />
+            <div className="w-[22px] h-[22px] rounded-full bg-nudge-blue flex items-center justify-center shadow-xs">
+              <CheckCircle2 className="w-[18px] h-[18px] text-white stroke-[2.4]" />
+            </div>
           ) : (
-            <Circle className="w-5 h-5 text-nudge-text-muted hover:text-nudge-blue transition-colors" />
+            <div className="w-[22px] h-[22px] rounded-full border-[1.8px] border-nudge-blue/60 dark:border-nudge-blue/50 hover:border-nudge-blue transition-colors" />
           )}
         </button>
 
@@ -81,7 +95,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         >
           <div className="flex items-center gap-2">
             <p
-              className={`text-sm font-medium truncate ${
+              className={`text-[15px] font-medium leading-snug truncate ${
                 isDone
                   ? 'line-through text-nudge-text-muted dark:text-nudge-text-muted-dark'
                   : 'text-nudge-text-primary dark:text-nudge-text-primary-dark'
@@ -91,15 +105,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             </p>
             {task.priority === 'Important' && !isDone && (
               <span
-                className="w-2 h-2 rounded-full bg-nudge-important shrink-0"
+                className="w-2 h-2 rounded-full bg-nudge-important shrink-0 shadow-xs"
                 title="Important"
               />
             )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 mt-1">
-            <span className="flex items-center gap-1 text-[11px] text-nudge-text-muted dark:text-nudge-text-muted-dark">
-              <Clock className="w-3 h-3" />
+            <span className="flex items-center gap-1 text-[11px] text-nudge-text-muted dark:text-nudge-text-muted-dark font-sans">
+              <Clock className="w-3 h-3 text-nudge-text-muted stroke-[1.8]" />
               {!repeats && task.dateLabel && task.dateLabel !== 'Today'
                 ? `${task.dateLabel} • `
                 : ''}

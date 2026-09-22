@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Trash2,
   Clock,
   Calendar,
-  Tag,
-  AlertCircle,
-  Repeat,
   Sparkles,
+  Check,
+  Mic,
+  Volume2,
+  Repeat as RepeatIcon,
 } from 'lucide-react';
 import { NudgeTask, TaskPriority } from '../../types';
 import { parseNudgeNlp, formatClockTime } from '../../utils/nlpParser';
@@ -46,25 +47,48 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [category, setCategory] = useState('Personal');
   const [priority, setPriority] = useState<TaskPriority>('Normal');
   const [repeat, setRepeat] = useState('Does not repeat');
+  const [soundType, setSoundType] = useState('Small nudge');
   const [isSaving, setIsSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Custom picker modes
   const [isCustomDate, setIsCustomDate] = useState(false);
   const [customDateValue, setCustomDateValue] = useState(getTodayIso());
   const [isCustomTime, setIsCustomTime] = useState(false);
   const [customTimeValue, setCustomTimeValue] = useState('09:00');
+  const [isCustomRepeat, setIsCustomRepeat] = useState(false);
+  const [customRepeatValue, setCustomRepeatValue] = useState('Every 2 weeks');
+
+  // Voice speech recognition
+  const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const categories = ['Personal', 'Work', 'Home', 'Shopping', 'Other'];
   const standardDateOptions = ['Today', 'Tomorrow', 'This Week', 'Next Week'];
-  const standardTimeOptions = ['Any time', 'Morning (9:00 AM)', '2:30 PM', '5:00 PM', 'Tonight (8:00 PM)'];
-  const repeatOptions = [
+  const standardTimeOptions = [
+    'Any time',
+    'Morning (9:00 AM)',
+    '2:30 PM',
+    '5:00 PM',
+    'Tonight (8:00 PM)',
+  ];
+  const standardRepeatOptions = [
     'Does not repeat',
     'Every day',
-    'Every 2 days',
     'Weekdays',
     'Every week',
     'Every month',
   ];
+  const customRepeatPresets = [
+    'Every 2 days',
+    'Every 2 weeks',
+    'Every 3 months',
+    'Every 6 months',
+    'Every year',
+  ];
+  const soundOptions = ['Small nudge', 'Full ringtone'];
 
   // NLP Live Preview Suggestion
   const nlpPreview = title.trim().length > 3 ? parseNudgeNlp(title) : null;
@@ -82,6 +106,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setCategory(taskToEdit.category || 'Personal');
       setPriority(taskToEdit.priority || 'Normal');
       setRepeat(taskToEdit.repeat || 'Does not repeat');
+      setValidationError(null);
 
       const isStdDate = standardDateOptions.includes(taskToEdit.dateLabel);
       setIsCustomDate(!isStdDate);
@@ -100,6 +125,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           setCustomTimeValue(`${pad(parsed.hour)}:${pad(parsed.minute)}`);
         }
       }
+
+      const isStdRepeat = standardRepeatOptions.includes(taskToEdit.repeat || 'Does not repeat');
+      setIsCustomRepeat(!isStdRepeat);
+      if (!isStdRepeat) {
+        setCustomRepeatValue(taskToEdit.repeat || 'Every 2 weeks');
+      }
     } else {
       setTitle('');
       setTimeLabel('Any time');
@@ -108,12 +139,97 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setCategory('Personal');
       setPriority('Normal');
       setRepeat('Does not repeat');
+      setSoundType('Small nudge');
       setIsCustomDate(false);
       setIsCustomTime(false);
+      setIsCustomRepeat(false);
+      setValidationError(null);
     }
   }, [taskToEdit, initialDateLabel, isOpen]);
 
+  // Handle escape key to dismiss
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Clean up voice recognition on unmount / close
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
   if (!isOpen) return null;
+
+  const handleToggleVoice = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setVoiceError('Speech recognition is not supported in this browser.');
+      setTimeout(() => setVoiceError(null), 4000);
+      return;
+    }
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setVoiceError(null);
+      };
+
+      recognition.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript) {
+          setTitle(transcript);
+          setValidationError(null);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        if (event.error !== 'no-speech') {
+          setVoiceError('Voice input error: ' + (event.error || 'unknown'));
+          setTimeout(() => setVoiceError(null), 4000);
+        }
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch {
+      setVoiceError('Could not start microphone.');
+      setIsListening(false);
+    }
+  };
 
   const handleApplyNlpSuggestion = () => {
     if (!nlpPreview) return;
@@ -125,12 +241,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     setStartDateIso(nlpPreview.startDateIso);
     if (nlpPreview.extractedRepeat !== 'Does not repeat') {
       setRepeat(nlpPreview.extractedRepeat);
+      const isStd = standardRepeatOptions.includes(nlpPreview.extractedRepeat);
+      setIsCustomRepeat(!isStd);
+      if (!isStd) setCustomRepeatValue(nlpPreview.extractedRepeat);
     }
   };
 
   const handleSelectDate = (d: string) => {
     setIsCustomDate(false);
     setDateLabel(d);
+    setValidationError(null);
     if (d === 'Today') setStartDateIso(getTodayIso());
     else if (d === 'Tomorrow') setStartDateIso(getOffsetIso(1));
     else if (d === 'This Week') setStartDateIso(getTodayIso());
@@ -141,10 +261,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     setCustomDateValue(iso);
     setStartDateIso(iso);
     setDateLabel(iso);
+    setValidationError(null);
   };
 
   const handleSelectTime = (t: string) => {
     setIsCustomTime(false);
+    setValidationError(null);
     if (t === 'Morning (9:00 AM)') setTimeLabel('9:00 AM');
     else if (t === 'Tonight (8:00 PM)') setTimeLabel('8:00 PM');
     else setTimeLabel(t);
@@ -157,16 +279,32 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     const d = new Date();
     d.setHours(h, m, 0, 0);
     setTimeLabel(formatClockTime(d));
+    setValidationError(null);
+  };
+
+  const handleSelectRepeat = (rep: string) => {
+    setIsCustomRepeat(false);
+    setRepeat(rep);
+  };
+
+  const handleCustomRepeatChange = (customRep: string) => {
+    setCustomRepeatValue(customRep);
+    setRepeat(customRep);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setValidationError('Give this little nudge a few words first.');
+      if (inputRef.current) inputRef.current.focus();
+      return;
+    }
 
     try {
       setIsSaving(true);
       await onSave({
-        title: title.trim(),
+        title: trimmedTitle,
         timeLabel,
         dateLabel,
         startDate: startDateIso,
@@ -190,79 +328,155 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-xs transition-opacity duration-300"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      role="dialog"
+      aria-modal="true"
+    >
       <div
-        className="w-full max-w-md bg-white dark:bg-nudge-card-dark rounded-3xl border border-nudge-border dark:border-nudge-border-dark shadow-float p-6 space-y-4 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto no-scrollbar"
-        role="dialog"
-        aria-modal="true"
+        className="w-full max-w-xl bg-white dark:bg-nudge-card-dark rounded-t-[28px] border-t border-x border-nudge-border/80 dark:border-nudge-border-dark shadow-float flex flex-col max-h-[92vh] animate-in slide-in-from-bottom duration-300 ease-out"
+        onClick={(e) => e.stopPropagation()}
       >
+        {/* Android ModalBottomSheet Drag Handle */}
+        <div className="pt-3 pb-1 flex justify-center shrink-0">
+          <div className="w-9 h-1 rounded-full bg-nudge-border dark:bg-nudge-border-dark" />
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between pb-1 border-b border-nudge-border/50 dark:border-nudge-border-dark/50">
-          <h3 className="font-serif text-xl font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark">
-            {taskToEdit ? 'Edit Gentle Nudge' : 'New Gentle Nudge'}
-          </h3>
+        <div className="px-6 pt-2 pb-3 flex items-center justify-between shrink-0">
+          <div>
+            <span className="text-[11px] font-bold tracking-widest text-nudge-blue dark:text-blue-400 uppercase block mb-0.5">
+              {taskToEdit ? 'EDIT LITTLE NUDGE' : 'NEW LITTLE NUDGE'}
+            </span>
+            <h2 className="font-serif text-2xl font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark">
+              {taskToEdit ? 'Refine this thought.' : 'Hold this thought.'}
+            </h2>
+          </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 rounded-full text-nudge-text-muted hover:text-nudge-text-primary dark:hover:text-nudge-text-primary-dark hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark transition-colors"
-            aria-label="Close dialog"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-nudge-text-muted hover:text-nudge-text-primary dark:hover:text-nudge-text-primary-dark hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark transition-colors"
+            aria-label="Close composer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Title Input */}
+        {/* Form Body - Scrollable Content */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 pb-6 space-y-5 no-scrollbar">
+          {/* Title & Quick Voice Capture */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-              Reminder
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Pay electricity bill tomorrow 7pm"
-              className="w-full px-4 py-2.5 rounded-2xl bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 border border-nudge-border dark:border-nudge-border-dark text-sm text-nudge-text-primary dark:text-nudge-text-primary-dark placeholder:text-nudge-text-muted focus:outline-none focus:border-nudge-blue"
-              autoFocus
-              required
-            />
+            <div className="relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (validationError) setValidationError(null);
+                }}
+                placeholder="What would you like to remember?"
+                className="w-full pl-4 pr-12 py-3 rounded-2xl bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 border border-nudge-border dark:border-nudge-border-dark text-sm sm:text-base text-nudge-text-primary dark:text-nudge-text-primary-dark placeholder:text-nudge-text-muted focus:outline-none focus:border-nudge-blue transition-colors"
+                autoFocus
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                <button
+                  type="button"
+                  onClick={handleToggleVoice}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                    isListening
+                      ? 'bg-nudge-blue text-white animate-pulse'
+                      : 'text-nudge-blue dark:text-blue-400 hover:bg-nudge-blue/10 dark:hover:bg-blue-900/30'
+                  }`}
+                  title={isListening ? 'Stop listening' : 'Voice input'}
+                  aria-label="Voice input"
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Voice Listening indicator */}
+            {isListening && (
+              <div className="flex items-center gap-2 text-xs font-medium text-nudge-blue dark:text-blue-400 pl-1 pt-1 animate-pulse">
+                <span className="w-2 h-2 rounded-full bg-nudge-blue animate-ping" />
+                <span>Listening… speak naturally (e.g. &ldquo;Read tonight at 9 PM&rdquo;)</span>
+              </div>
+            )}
+
+            {/* Voice Error notice */}
+            {voiceError && (
+              <div className="text-xs text-rose-500 dark:text-rose-400 pl-1 pt-1">
+                {voiceError}
+              </div>
+            )}
 
             {/* Smart NLP Suggestion Pill */}
             {showNlpSuggestion && (
-              <div className="flex items-center justify-between p-2 rounded-xl bg-nudge-blue/10 border border-nudge-blue/20 text-xs animate-in fade-in duration-200">
-                <div className="flex items-center gap-1.5 text-nudge-blue min-w-0 truncate">
-                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <div
+                onClick={handleApplyNlpSuggestion}
+                className="flex items-center justify-between p-2.5 rounded-xl bg-nudge-blue/10 dark:bg-nudge-blue/20 border border-nudge-blue/25 text-xs cursor-pointer hover:bg-nudge-blue/15 transition-colors"
+                data-testid="nlp-suggestion-chip"
+              >
+                <div className="flex items-center gap-2 text-nudge-blue dark:text-blue-300 min-w-0 truncate">
+                  <Clock className="w-4 h-4 shrink-0 text-nudge-blue dark:text-blue-400" />
                   <span className="truncate">
-                    Recognized: <b>{nlpPreview.extractedDate}</b> at <b>{nlpPreview.extractedTime}</b>
+                    Interpreted as <b>{nlpPreview.extractedDate}</b> at <b>{nlpPreview.extractedTime}</b>
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleApplyNlpSuggestion}
-                  className="px-2.5 py-1 rounded-lg bg-nudge-blue text-white text-[11px] font-semibold hover:bg-nudge-blue-light transition-colors shrink-0 ml-2"
-                >
-                  Auto-fill
-                </button>
+                <span className="text-[11.5px] font-bold text-nudge-blue dark:text-blue-400 shrink-0 ml-2">
+                  Tap to apply
+                </span>
               </div>
             )}
           </div>
 
-          {/* Date Selector (Chips + Custom Calendar Date) */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark flex items-center justify-between">
-              <span>Date</span>
-              <span className="text-[11px] font-normal text-nudge-text-muted">{dateLabel}</span>
+          {/* Category Selector */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark block">
+              Category
             </label>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
+              {categories.map((cat) => (
+                <button
+                  type="button"
+                  key={cat}
+                  onClick={() => setCategory(cat)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                    category === cat
+                      ? 'bg-nudge-blue/15 text-nudge-blue dark:text-blue-400 border border-nudge-blue font-semibold'
+                      : 'bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 text-nudge-text-secondary dark:text-nudge-text-secondary-dark border border-nudge-border/70 dark:border-nudge-border-dark/70 hover:text-nudge-text-primary'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* When / Date Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
+                When?
+              </label>
+              <span className="text-[11px] font-normal text-nudge-text-muted">{dateLabel}</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
               {standardDateOptions.map((d) => (
                 <button
                   type="button"
                   key={d}
                   onClick={() => handleSelectDate(d)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
                     !isCustomDate && dateLabel === d
-                      ? 'bg-nudge-blue text-white shadow-xs font-semibold'
-                      : 'bg-nudge-parchment/70 dark:bg-nudge-parchment-dark/70 text-nudge-text-secondary dark:text-nudge-text-secondary-dark hover:text-nudge-text-primary'
+                      ? 'bg-nudge-blue/15 text-nudge-blue dark:text-blue-400 border border-nudge-blue font-semibold'
+                      : 'bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 text-nudge-text-secondary dark:text-nudge-text-secondary-dark border border-nudge-border/70 dark:border-nudge-border-dark/70 hover:text-nudge-text-primary'
                   }`}
                 >
                   {d}
@@ -271,38 +485,39 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCustomDate(true)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 ${
                   isCustomDate
-                    ? 'bg-nudge-blue text-white shadow-xs font-semibold'
-                    : 'bg-nudge-parchment/70 dark:bg-nudge-parchment-dark/70 text-nudge-text-secondary dark:text-nudge-text-secondary-dark hover:text-nudge-text-primary'
+                    ? 'bg-nudge-blue/15 text-nudge-blue dark:text-blue-400 border border-nudge-blue font-semibold'
+                    : 'bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 text-nudge-text-secondary dark:text-nudge-text-secondary-dark border border-nudge-border/70 dark:border-nudge-border-dark/70 hover:text-nudge-text-primary'
                 }`}
               >
-                <Calendar className="w-3 h-3" />
-                <span>Calendar…</span>
+                <Calendar className="w-3.5 h-3.5" />
+                <span>{isCustomDate ? customDateValue : 'Custom date'}</span>
               </button>
             </div>
 
             {isCustomDate && (
-              <div className="pt-1.5">
+              <div className="pt-1">
                 <input
                   type="date"
                   value={customDateValue}
                   onChange={(e) => handleCustomDateChange(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 border border-nudge-border dark:border-nudge-border-dark text-xs text-nudge-text-primary dark:text-nudge-text-primary-dark focus:outline-none focus:border-nudge-blue"
+                  className="w-full px-3.5 py-2 rounded-xl bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 border border-nudge-border dark:border-nudge-border-dark text-xs text-nudge-text-primary dark:text-nudge-text-primary-dark focus:outline-none focus:border-nudge-blue"
                 />
               </div>
             )}
           </div>
 
-          {/* Time Selector (Chips + Custom Time Picker) */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark flex items-center justify-between">
-              <span>Time</span>
+          {/* At what time? / Time Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
+                At what time?
+              </label>
               <span className="text-[11px] font-normal text-nudge-text-muted">{timeLabel}</span>
-            </label>
-            <div className="flex flex-wrap gap-1.5">
+            </div>
+            <div className="flex flex-wrap gap-2">
               {standardTimeOptions.map((t) => {
-                const label = t.split(' ')[0];
                 const isSelected =
                   !isCustomTime &&
                   (timeLabel === t ||
@@ -313,10 +528,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     type="button"
                     key={t}
                     onClick={() => handleSelectTime(t)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
                       isSelected
-                        ? 'bg-nudge-blue text-white shadow-xs font-semibold'
-                        : 'bg-nudge-parchment/70 dark:bg-nudge-parchment-dark/70 text-nudge-text-secondary dark:text-nudge-text-secondary-dark hover:text-nudge-text-primary'
+                        ? 'bg-nudge-blue/15 text-nudge-blue dark:text-blue-400 border border-nudge-blue font-semibold'
+                        : 'bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 text-nudge-text-secondary dark:text-nudge-text-secondary-dark border border-nudge-border/70 dark:border-nudge-border-dark/70 hover:text-nudge-text-primary'
                     }`}
                   >
                     {t}
@@ -326,104 +541,153 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCustomTime(true)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 ${
                   isCustomTime
-                    ? 'bg-nudge-blue text-white shadow-xs font-semibold'
-                    : 'bg-nudge-parchment/70 dark:bg-nudge-parchment-dark/70 text-nudge-text-secondary dark:text-nudge-text-secondary-dark hover:text-nudge-text-primary'
+                    ? 'bg-nudge-blue/15 text-nudge-blue dark:text-blue-400 border border-nudge-blue font-semibold'
+                    : 'bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 text-nudge-text-secondary dark:text-nudge-text-secondary-dark border border-nudge-border/70 dark:border-nudge-border-dark/70 hover:text-nudge-text-primary'
                 }`}
               >
-                <Clock className="w-3 h-3" />
-                <span>Custom…</span>
+                <Clock className="w-3.5 h-3.5" />
+                <span>{isCustomTime ? timeLabel : 'Custom time'}</span>
               </button>
             </div>
 
             {isCustomTime && (
-              <div className="pt-1.5">
+              <div className="pt-1">
                 <input
                   type="time"
                   value={customTimeValue}
                   onChange={(e) => handleCustomTimeChange(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 border border-nudge-border dark:border-nudge-border-dark text-xs text-nudge-text-primary dark:text-nudge-text-primary-dark focus:outline-none focus:border-nudge-blue"
+                  className="w-full px-3.5 py-2 rounded-xl bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 border border-nudge-border dark:border-nudge-border-dark text-xs text-nudge-text-primary dark:text-nudge-text-primary-dark focus:outline-none focus:border-nudge-blue"
                 />
               </div>
             )}
           </div>
 
-          {/* Category Chips */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-              Category
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {categories.map((cat) => (
-                <button
-                  type="button"
-                  key={cat}
-                  onClick={() => setCategory(cat)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                    category === cat
-                      ? 'bg-nudge-blue text-white shadow-xs font-semibold'
-                      : 'bg-nudge-parchment/70 dark:bg-nudge-parchment-dark/70 text-nudge-text-secondary dark:text-nudge-text-secondary-dark hover:text-nudge-text-primary'
-                  }`}
+          {/* Repeat Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark flex items-center gap-1.5">
+                <RepeatIcon className="w-3.5 h-3.5 text-nudge-blue" />
+                <span>Repeat</span>
+              </label>
+              <span className="text-[11px] font-normal text-nudge-text-muted">{repeat}</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {standardRepeatOptions.map((rep) => {
+                const isSelected = !isCustomRepeat && repeat === rep;
+                return (
+                  <button
+                    type="button"
+                    key={rep}
+                    onClick={() => handleSelectRepeat(rep)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                      isSelected
+                        ? 'bg-nudge-blue/15 text-nudge-blue dark:text-blue-400 border border-nudge-blue font-semibold'
+                        : 'bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 text-nudge-text-secondary dark:text-nudge-text-secondary-dark border border-nudge-border/70 dark:border-nudge-border-dark/70 hover:text-nudge-text-primary'
+                    }`}
+                  >
+                    {rep === 'Does not repeat' ? 'Once' : rep}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCustomRepeat(true);
+                  if (repeat === 'Does not repeat' || standardRepeatOptions.includes(repeat)) {
+                    setRepeat(customRepeatValue);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                  isCustomRepeat
+                    ? 'bg-nudge-blue/15 text-nudge-blue dark:text-blue-400 border border-nudge-blue font-semibold'
+                    : 'bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 text-nudge-text-secondary dark:text-nudge-text-secondary-dark border border-nudge-border/70 dark:border-nudge-border-dark/70 hover:text-nudge-text-primary'
+                }`}
+              >
+                {isCustomRepeat ? repeat : 'Custom…'}
+              </button>
+            </div>
+
+            {isCustomRepeat && (
+              <div className="pt-1">
+                <select
+                  value={repeat}
+                  onChange={(e) => handleCustomRepeatChange(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 border border-nudge-border dark:border-nudge-border-dark text-xs text-nudge-text-primary dark:text-nudge-text-primary-dark focus:outline-none focus:border-nudge-blue"
                 >
-                  {cat}
-                </button>
-              ))}
+                  {customRepeatPresets.map((preset) => (
+                    <option key={preset} value={preset}>
+                      {preset}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Reminder Sound Section */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark flex items-center gap-1.5">
+              <Volume2 className="w-3.5 h-3.5 text-nudge-blue" />
+              <span>Reminder Sound</span>
+            </label>
+            <div className="flex gap-2">
+              {soundOptions.map((sound) => {
+                const isSelected = soundType === sound;
+                return (
+                  <button
+                    type="button"
+                    key={sound}
+                    onClick={() => setSoundType(sound)}
+                    className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-medium transition-all ${
+                      isSelected
+                        ? 'bg-nudge-blue/15 text-nudge-blue dark:text-blue-400 border border-nudge-blue font-semibold'
+                        : 'bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 text-nudge-text-secondary dark:text-nudge-text-secondary-dark border border-nudge-border/70 dark:border-nudge-border-dark/70 hover:text-nudge-text-primary'
+                    }`}
+                  >
+                    {sound}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Repeat Option */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark flex items-center gap-1">
-              <Repeat className="w-3 h-3 text-nudge-blue" />
-              <span>Repeat</span>
-            </label>
-            <select
-              value={repeat}
-              onChange={(e) => setRepeat(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 border border-nudge-border dark:border-nudge-border-dark text-xs text-nudge-text-primary dark:text-nudge-text-primary-dark focus:outline-none focus:border-nudge-blue"
+          {/* Important Priority Toggle Pill - Matching Android ComposerSheet */}
+          <div
+            onClick={() => setPriority(priority === 'Important' ? 'Normal' : 'Important')}
+            className={`w-full p-3 rounded-xl border cursor-pointer transition-colors flex items-center gap-2.5 ${
+              priority === 'Important'
+                ? 'bg-[#FFF3E8] dark:bg-[#3D2619] border-[#FF6B35]'
+                : 'bg-nudge-parchment/50 dark:bg-nudge-parchment-dark/50 border-nudge-border dark:border-nudge-border-dark'
+            }`}
+            data-testid="composer-priority-toggle"
+          >
+            <span
+              className={`w-2.5 h-2.5 rounded-full ${
+                priority === 'Important' ? 'bg-[#FF6B35]' : 'bg-neutral-400 dark:bg-neutral-500'
+              }`}
+            />
+            <span
+              className={`text-sm ${
+                priority === 'Important'
+                  ? 'font-semibold text-[#B33600] dark:text-[#FFA07A]'
+                  : 'font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark'
+              }`}
             >
-              {repeatOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
+              {priority === 'Important' ? 'Marked as Important' : 'Mark as Important'}
+            </span>
           </div>
 
-          {/* Priority */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-              Priority
-            </label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPriority('Normal')}
-                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-medium border transition-all ${
-                  priority === 'Normal'
-                    ? 'bg-nudge-parchment dark:bg-nudge-parchment-dark border-nudge-blue text-nudge-blue font-semibold'
-                    : 'border-nudge-border dark:border-nudge-border-dark text-nudge-text-secondary hover:text-nudge-text-primary'
-                }`}
-              >
-                Normal
-              </button>
-              <button
-                type="button"
-                onClick={() => setPriority('Important')}
-                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-medium border transition-all ${
-                  priority === 'Important'
-                    ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-500 text-orange-600 dark:text-orange-400 font-semibold'
-                    : 'border-nudge-border dark:border-nudge-border-dark text-nudge-text-secondary hover:text-nudge-text-primary'
-                }`}
-              >
-                Important
-              </button>
+          {/* Validation Error Message */}
+          {validationError && (
+            <div className="text-xs text-rose-500 dark:text-rose-400 font-medium pt-1">
+              {validationError}
             </div>
-          </div>
+          )}
 
-          {/* Actions */}
-          <div className="flex items-center justify-between pt-3 border-t border-nudge-border/50 dark:border-nudge-border-dark/50">
+          {/* Footer Actions */}
+          <div className="flex items-center justify-between pt-4 border-t border-nudge-border/60 dark:border-nudge-border-dark/60">
             {taskToEdit && onDelete ? (
               <button
                 type="button"
@@ -435,7 +699,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 <span>Delete</span>
               </button>
             ) : (
-              <div />
+              <div className="flex items-center gap-1.5 text-xs text-nudge-text-muted">
+                <Sparkles className="w-3.5 h-3.5 text-nudge-blue" />
+                <span>Saved privately on device</span>
+              </div>
             )}
 
             <div className="flex items-center gap-2">
@@ -448,10 +715,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={isSaving || !title.trim()}
-                className="px-5 py-2 rounded-xl text-xs font-semibold bg-nudge-blue hover:bg-nudge-blue-light text-white shadow-xs transition-colors disabled:opacity-40"
+                disabled={isSaving}
+                className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-nudge-blue hover:bg-nudge-blue-light text-white shadow-xs transition-colors disabled:opacity-40 flex items-center gap-1.5"
               >
-                {isSaving ? 'Saving…' : taskToEdit ? 'Save Changes' : 'Add Nudge'}
+                <span>{isSaving ? 'Saving…' : taskToEdit ? 'Update nudge' : 'Save nudge'}</span>
+                <Check className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -460,3 +728,4 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     </div>
   );
 };
+

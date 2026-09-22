@@ -112,13 +112,16 @@ export const HoursPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header section with Editorial Title */}
+      {/* Header section with Editorial Title matching LifeInHoursScreen.kt */}
       <div className="space-y-1">
-        <h1 className="font-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal">
-          Life in Hours
+        <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight">
+          The life within
         </h1>
-        <p className="text-xs sm:text-sm text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-          Honoring how you gently invest your most precious, finite resource: time.
+        <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-blue dark:text-nudge-blue-light font-normal leading-tight">
+          the hours
+        </h1>
+        <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark pt-1">
+          Choose where your hours go.
         </p>
       </div>
 

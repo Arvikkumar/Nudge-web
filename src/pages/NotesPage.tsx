@@ -101,13 +101,16 @@ export const NotesPage: React.FC<NotesPageProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header section with Editorial Title */}
+      {/* Header section with Editorial Title matching AllTasksScreen.kt */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="font-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal">
-            Your Notes & Nudges
+          <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight">
+            Your notes,
           </h1>
-          <p className="text-xs sm:text-sm text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
+          <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-blue dark:text-nudge-blue-light font-normal leading-tight">
+            always kept close.
+          </h1>
+          <p className="text-xs sm:text-sm text-nudge-text-secondary dark:text-nudge-text-secondary-dark pt-1">
             Everything you’ve tucked away for later, calm and organized.
           </p>
         </div>

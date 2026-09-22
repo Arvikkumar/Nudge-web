@@ -7,18 +7,24 @@
     --nudge-bg: #FAF7F2;
     --nudge-card: #FFFFFF;
     --nudge-border: #EDE8DF;
+    --nudge-surface-variant: #F2EFE8;
     --nudge-text: #1C1A17;
     --nudge-text-sec: #756F67;
+    --nudge-text-muted: #A39D93;
     --nudge-blue: #2E62F6;
+    --nudge-active-blue: #4579F5;
   }
 
   .dark {
     --nudge-bg: #181614;
     --nudge-card: #22201D;
     --nudge-border: #3C3730;
+    --nudge-surface-variant: #2A2723;
     --nudge-text: #EDE8DF;
     --nudge-text-sec: #9F988D;
+    --nudge-text-muted: #756F65;
     --nudge-blue: #507DFE;
+    --nudge-active-blue: #4579F5;
   }
 
   html, body {
@@ -28,6 +34,19 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-tap-highlight-color: transparent;
   }
+}
+
+/* Typography styles matching Android Type.kt */
+.font-display-medium {
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 28px;
+  line-height: 34px;
+  letter-spacing: -0.3px;
+  font-weight: 400;
+}
+
+.font-editorial-serif {
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 /* Smooth subtle transitions */
