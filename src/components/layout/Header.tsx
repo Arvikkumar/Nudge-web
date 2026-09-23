@@ -32,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const navItems = [
     { id: 'today' as NavView, label: 'Today', icon: Home },
-    { id: 'notes' as NavView, label: 'Your Notes', icon: Inbox },
+    { id: 'notes' as NavView, label: 'Your notes', icon: Inbox },
     { id: 'hours' as NavView, label: 'Hours', icon: Hourglass },
     { id: 'settings' as NavView, label: 'Settings', icon: Settings },
   ];

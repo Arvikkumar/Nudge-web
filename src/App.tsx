@@ -296,7 +296,7 @@ export const App: React.FC = () => {
           setTaskToEdit(null);
         }}
         taskToEdit={taskToEdit}
-        initialDateLabel={activeView === 'today' ? 'Today' : 'Tomorrow'}
+        initialDateLabel={activeView === 'today' || activeView === 'notes' ? 'Today' : 'Tomorrow'}
         onSave={handleSaveModal}
         onDelete={handleDeleteTaskWithUndo}
       />

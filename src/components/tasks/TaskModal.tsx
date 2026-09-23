@@ -329,7 +329,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-xs transition-opacity duration-300"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-xs transition-opacity duration-300 p-0 sm:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
@@ -339,7 +339,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       aria-modal="true"
     >
       <div
-        className="w-full max-w-xl bg-white dark:bg-nudge-card-dark rounded-t-[28px] border-t border-x border-nudge-border/80 dark:border-nudge-border-dark shadow-float flex flex-col max-h-[92vh] animate-in slide-in-from-bottom duration-300 ease-out"
+        className="w-full max-w-xl bg-white dark:bg-nudge-card-dark rounded-t-[28px] sm:rounded-card border-t border-x sm:border-b border-nudge-border/80 dark:border-nudge-border-dark shadow-float flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-in slide-in-from-bottom duration-300 ease-out overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Android ModalBottomSheet Drag Handle */}
@@ -353,7 +353,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             <span className="text-[11px] font-bold tracking-widest text-nudge-blue dark:text-blue-400 uppercase block mb-0.5">
               {taskToEdit ? 'EDIT LITTLE NUDGE' : 'NEW LITTLE NUDGE'}
             </span>
-            <h2 className="font-serif text-2xl font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark">
+            <h2 className="font-editorial-serif text-2xl font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark">
               {taskToEdit ? 'Refine this thought.' : 'Hold this thought.'}
             </h2>
           </div>
@@ -367,9 +367,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           </button>
         </div>
 
-        {/* Form Body - Scrollable Content */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 pb-6 space-y-5 no-scrollbar">
-          {/* Title & Quick Voice Capture */}
+        {/* Form Body: Scrollable Content + Sticky Action Footer */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* Scrollable Form Content */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5 no-scrollbar">
+            {/* Title & Quick Voice Capture */}
           <div className="space-y-1.5">
             <div className="relative">
               <input
@@ -420,7 +422,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             {showNlpSuggestion && (
               <div
                 onClick={handleApplyNlpSuggestion}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-nudge-blue/10 dark:bg-nudge-blue/20 border border-nudge-blue/25 text-xs cursor-pointer hover:bg-nudge-blue/15 transition-colors"
+                className="flex items-center justify-between p-2.5 rounded-card bg-nudge-blue/10 dark:bg-nudge-blue/20 border border-nudge-blue/25 text-xs cursor-pointer hover:bg-nudge-blue/15 transition-colors"
                 data-testid="nlp-suggestion-chip"
               >
                 <div className="flex items-center gap-2 text-nudge-blue dark:text-blue-300 min-w-0 truncate">
@@ -656,7 +658,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           {/* Important Priority Toggle Pill - Matching Android ComposerSheet */}
           <div
             onClick={() => setPriority(priority === 'Important' ? 'Normal' : 'Important')}
-            className={`w-full p-3 rounded-xl border cursor-pointer transition-colors flex items-center gap-2.5 ${
+            className={`w-full p-3 rounded-card border cursor-pointer transition-colors flex items-center gap-2.5 ${
               priority === 'Important'
                 ? 'bg-[#FFF3E8] dark:bg-[#3D2619] border-[#FF6B35]'
                 : 'bg-nudge-parchment/50 dark:bg-nudge-parchment-dark/50 border-nudge-border dark:border-nudge-border-dark'
@@ -685,27 +687,28 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               {validationError}
             </div>
           )}
+          </div>
 
-          {/* Footer Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-nudge-border/60 dark:border-nudge-border-dark/60">
+          {/* Sticky Action Footer */}
+          <div className="shrink-0 px-6 py-3.5 bg-white dark:bg-nudge-card-dark border-t border-nudge-border/80 dark:border-nudge-border-dark/80 flex items-center justify-between gap-3 shadow-xs">
             {taskToEdit && onDelete ? (
               <button
                 type="button"
                 onClick={handleDelete}
-                className="flex items-center gap-1.5 text-xs font-medium text-rose-500 hover:text-rose-600 p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-rose-500 hover:text-rose-600 p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors shrink-0"
                 title="Delete nudge"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Delete</span>
               </button>
             ) : (
-              <div className="flex items-center gap-1.5 text-xs text-nudge-text-muted">
-                <Sparkles className="w-3.5 h-3.5 text-nudge-blue" />
-                <span>Saved privately on device</span>
+              <div className="flex items-center gap-1.5 text-xs text-nudge-text-muted min-w-0">
+                <Sparkles className="w-3.5 h-3.5 text-nudge-blue shrink-0" />
+                <span className="truncate text-[11px] sm:text-xs">Saved privately on device</span>
               </div>
             )}
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0 ml-auto">
               <button
                 type="button"
                 onClick={onClose}

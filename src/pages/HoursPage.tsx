@@ -20,7 +20,9 @@ import { Pursuit } from '../types';
 import { TimeReportExport } from '../components/hours/TimeReportExport';
 
 export const HoursPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'past' | 'export'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'cycle' | 'review'>('cycle');
+  const [selectedReportYear, setSelectedReportYear] = useState<number>(new Date().getFullYear());
+  const [selectedReportMonth, setSelectedReportMonth] = useState<number>(new Date().getMonth() + 1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingPursuit, setEditingPursuit] = useState<Pursuit | null>(null);
 
@@ -60,6 +62,14 @@ export const HoursPage: React.FC = () => {
     totalTargetHours > 0
       ? Math.round((totalLoggedHours / totalTargetHours) * 100)
       : 0;
+
+  // Handlers for switching to Monthly Review & Export
+  const handleOpenCurrentMonthExport = () => {
+    const now = new Date();
+    setSelectedReportYear(now.getFullYear());
+    setSelectedReportMonth(now.getMonth() + 1);
+    setActiveTab('review');
+  };
 
   // Format timer seconds into HH:MM:SS
   const formatTimer = (seconds: number) => {
@@ -111,7 +121,7 @@ export const HoursPage: React.FC = () => {
   const emojiOptions = ['📚', '✍️', '🧘', '💻', '🎨', '🏃', '🎵', '🌿', '🎯', '☕'];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="max-w-4xl mx-auto space-y-6 pb-12 sm:pb-8 animate-in fade-in duration-300">
       {/* Header section with Editorial Title matching LifeInHoursScreen.kt */}
       <div className="space-y-1">
         <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight">
@@ -125,20 +135,26 @@ export const HoursPage: React.FC = () => {
         </p>
       </div>
 
-      {/* Sub-tab navigation */}
-      <div className="flex items-center gap-1 bg-white dark:bg-nudge-card-dark p-1 rounded-2xl border border-nudge-border dark:border-nudge-border-dark shadow-xs max-w-sm">
-        {(['dashboard', 'past', 'export'] as const).map((tab) => {
+      {/* Sub-tab navigation: Clean Segmented Control */}
+      <div className="flex items-center p-1 rounded-2xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-xs max-w-md w-full">
+        {(['cycle', 'review'] as const).map((tab) => {
           const labels = {
-            dashboard: 'Dashboard',
-            past: 'Past Months',
-            export: 'Export PDF',
+            cycle: 'Current Cycle',
+            review: 'Monthly Review & Export',
           };
           const isSelected = activeTab === tab;
           return (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-medium transition-all ${
+              onClick={() => {
+                if (tab === 'review') {
+                  const now = new Date();
+                  setSelectedReportYear(now.getFullYear());
+                  setSelectedReportMonth(now.getMonth() + 1);
+                }
+                setActiveTab(tab);
+              }}
+              className={`flex-1 py-2 px-2.5 sm:px-4 rounded-xl text-xs font-medium transition-all text-center leading-tight ${
                 isSelected
                   ? 'bg-nudge-blue text-white shadow-xs font-semibold'
                   : 'text-nudge-text-secondary dark:text-nudge-text-secondary-dark hover:text-nudge-text-primary dark:hover:text-nudge-text-primary-dark'
@@ -210,74 +226,77 @@ export const HoursPage: React.FC = () => {
         </section>
       )}
 
-      {activeTab === 'dashboard' && (
+      {activeTab === 'cycle' && (
         <>
-          {/* Monthly Overview Card */}
-          <section className="rounded-3xl bg-nudge-parchment dark:bg-nudge-parchment-dark border border-nudge-border/80 dark:border-nudge-border-dark/80 p-6 shadow-xs relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Monthly Overview Card: Editorial Visual Hierarchy (Month -> Total Hours -> Pace/Target -> Progress) */}
+          <section className="rounded-3xl bg-nudge-parchment dark:bg-nudge-parchment-dark border border-nudge-border/80 dark:border-nudge-border-dark/80 p-5 sm:p-6 shadow-xs relative overflow-hidden space-y-4">
+            {/* Top row: Cycle Month on left, Understated Secondary Export PDF on right */}
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-nudge-blue">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-nudge-blue">
                   Current Cycle
                 </span>
-                <h2 className="font-serif text-2xl font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark mt-0.5">
+                <h2 className="font-editorial-serif text-2xl sm:text-3xl font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark leading-tight mt-0.5">
                   {currentMonthName}
                 </h2>
-                <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark mt-1">
-                  {totalLoggedHours.toFixed(1)} hours logged across {pursuits.length} mindful pursuits
-                </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-3 bg-white/70 dark:bg-nudge-card-dark/70 px-4 py-3 rounded-2xl border border-nudge-border dark:border-nudge-border-dark">
-                  <div className="w-10 h-10 rounded-full bg-nudge-blue/10 dark:bg-nudge-blue/20 text-nudge-blue flex items-center justify-center font-bold text-sm">
-                    {overallPercentage}%
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                      Monthly Pace
-                    </p>
-                    <p className="text-[11px] text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                      {totalLoggedHours.toFixed(1)} of {totalTargetHours} target hrs
-                    </p>
-                  </div>
-                </div>
+              <button
+                onClick={handleOpenCurrentMonthExport}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-nudge-card-dark/80 hover:bg-white dark:hover:bg-nudge-card-dark border border-nudge-border/70 dark:border-nudge-border-dark/70 text-xs font-medium text-nudge-text-secondary dark:text-nudge-text-secondary-dark hover:text-nudge-text-primary dark:hover:text-nudge-text-primary-dark transition-colors shadow-2xs shrink-0"
+                title="Review & Export Current Month PDF"
+              >
+                <FileText className="w-3.5 h-3.5 text-nudge-blue" />
+                <span>Export PDF</span>
+              </button>
+            </div>
 
-                <button
-                  onClick={() => setActiveTab('export')}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-3 rounded-2xl bg-white/70 dark:bg-nudge-card-dark/70 hover:bg-white dark:hover:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark text-xs font-medium text-nudge-text-primary dark:text-nudge-text-primary-dark transition-colors shadow-xs"
-                  title="Export PDF Report"
-                >
-                  <FileText className="w-4 h-4 text-nudge-blue" />
-                  <span>Export PDF</span>
-                </button>
+            {/* Primary metric: Total Hours Invested */}
+            <div className="pt-1">
+              <div className="flex items-baseline gap-2">
+                <span className="font-editorial-serif text-4xl sm:text-5xl font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark tracking-tight">
+                  {totalLoggedHours.toFixed(1)}
+                </span>
+                <span className="text-sm font-medium text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
+                  hours invested
+                </span>
               </div>
+              <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>
+                  Pace: <strong className="font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">{overallPercentage}%</strong> of {totalTargetHours} target hrs
+                </span>
+                <span className="text-nudge-border dark:text-nudge-border-dark">•</span>
+                <span>{pursuits.length} active pursuits</span>
+              </p>
             </div>
 
             {/* Global Progress Bar */}
-            <div className="w-full h-2.5 bg-white/80 dark:bg-nudge-card-dark/80 rounded-full mt-5 overflow-hidden p-0.5 border border-nudge-border/50 dark:border-nudge-border-dark/50">
-              <div
-                className="h-full bg-nudge-blue rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(overallPercentage, 100)}%` }}
-              />
+            <div className="space-y-1 pt-1">
+              <div className="w-full h-2 bg-white/90 dark:bg-nudge-card-dark/90 rounded-full overflow-hidden p-0.5 border border-nudge-border/40 dark:border-nudge-border-dark/40">
+                <div
+                  className="h-full bg-nudge-blue rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(overallPercentage, 100)}%` }}
+                />
+              </div>
             </div>
           </section>
 
           {/* Pursuits List */}
           <section className="space-y-3">
             <div className="flex items-center justify-between px-1">
-              <h3 className="text-sm font-semibold tracking-wide text-nudge-text-secondary dark:text-nudge-text-secondary-dark uppercase">
+              <h3 className="text-xs font-semibold tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark uppercase">
                 Active Pursuits ({pursuits.length})
               </h3>
               <button
                 onClick={handleOpenAddModal}
-                className="text-xs font-medium text-nudge-blue hover:text-nudge-blue-light flex items-center gap-1 px-3 py-1 rounded-full bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-xs"
+                className="text-xs font-medium text-nudge-blue hover:text-nudge-blue-light flex items-center gap-1 px-3 py-1 rounded-full bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-2xs hover:bg-nudge-parchment transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Pursuit</span>
               </button>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-1">
+            <div className="space-y-3">
               {pursuits.map((item) => {
                 const logged = (item.loggedMinutes || 0) / 60;
                 const pct =
@@ -290,26 +309,26 @@ export const HoursPage: React.FC = () => {
                 return (
                   <div
                     key={item.id}
-                    className={`p-4 rounded-2xl bg-white dark:bg-nudge-card-dark border transition-all shadow-xs space-y-3 ${
+                    className={`p-4 sm:p-5 rounded-2xl bg-white dark:bg-nudge-card-dark border transition-all shadow-2xs space-y-3 ${
                       isTrackingThis
                         ? 'border-nudge-blue ring-1 ring-nudge-blue/30'
                         : 'border-nudge-border dark:border-nudge-border-dark'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{item.emoji}</span>
-                        <div>
-                          <h4 className="text-sm font-medium text-nudge-text-primary dark:text-nudge-text-primary-dark">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-2xl select-none shrink-0">{item.emoji}</span>
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-medium text-nudge-text-primary dark:text-nudge-text-primary-dark truncate">
                             {item.name}
                           </h4>
-                          <span className="text-[11px] text-nudge-text-muted dark:text-nudge-text-muted-dark">
+                          <span className="text-xs text-nudge-text-muted dark:text-nudge-text-muted-dark">
                             {logged.toFixed(1)} hrs invested • Goal: {item.targetHours} hrs
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {/* Start / Pause / Tracking Button */}
                         {isTrackingThis ? (
                           <div className="flex items-center gap-1">
@@ -341,7 +360,7 @@ export const HoursPage: React.FC = () => {
                         ) : (
                           <button
                             onClick={() => startTimer(item.id)}
-                            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-nudge-parchment dark:bg-nudge-parchment-dark text-nudge-text-primary dark:text-nudge-text-primary-dark hover:bg-nudge-blue hover:text-white transition-all flex items-center gap-1"
+                            className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-nudge-parchment dark:bg-nudge-parchment-dark text-nudge-text-primary dark:text-nudge-text-primary-dark hover:bg-nudge-blue hover:text-white transition-all flex items-center gap-1.5 shadow-2xs"
                           >
                             <Play className="w-3 h-3 fill-current" />
                             <span>Track</span>
@@ -352,7 +371,7 @@ export const HoursPage: React.FC = () => {
                         <button
                           onClick={() => handleOpenEditModal(item)}
                           title="Edit Pursuit"
-                          className="p-1.5 rounded-full hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark text-nudge-text-muted hover:text-nudge-text-primary transition-colors"
+                          className="p-1.5 rounded-lg hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark text-nudge-text-muted hover:text-nudge-text-primary transition-colors"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
@@ -365,7 +384,7 @@ export const HoursPage: React.FC = () => {
                             }
                           }}
                           title="Delete Pursuit"
-                          className="p-1.5 rounded-full hover:bg-red-50 dark:hover:bg-red-950/40 text-nudge-text-muted hover:text-red-500 transition-colors"
+                          className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-nudge-text-muted hover:text-red-500 transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -373,25 +392,27 @@ export const HoursPage: React.FC = () => {
                     </div>
 
                     {/* Progress Bar & Percentage */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px] text-nudge-text-muted">
-                        <span>{pct}% accomplished</span>
-                        <div className="flex items-center gap-2">
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between text-xs text-nudge-text-muted dark:text-nudge-text-muted-dark">
+                        <span className="font-medium text-[11px]">{pct}% accomplished</span>
+                        <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => addManualHours(item.id, 0.5)}
-                            className="text-[10px] text-nudge-blue hover:underline"
+                            className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark hover:bg-nudge-blue hover:text-white text-nudge-blue transition-colors"
+                            title="Add 30 minutes"
                           >
                             +30m
                           </button>
                           <button
                             onClick={() => addManualHours(item.id, 1)}
-                            className="text-[10px] text-nudge-blue hover:underline"
+                            className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark hover:bg-nudge-blue hover:text-white text-nudge-blue transition-colors"
+                            title="Add 1 hour"
                           >
                             +1h
                           </button>
                         </div>
                       </div>
-                      <div className="w-full h-2 bg-nudge-parchment dark:bg-nudge-parchment-dark rounded-full overflow-hidden">
+                      <div className="w-full h-1.5 bg-nudge-parchment dark:bg-nudge-parchment-dark rounded-full overflow-hidden">
                         <div
                           className="h-full bg-nudge-blue rounded-full transition-all duration-300"
                           style={{ width: `${Math.min(pct, 100)}%` }}
@@ -406,71 +427,13 @@ export const HoursPage: React.FC = () => {
         </>
       )}
 
-      {/* PAST MONTHS TAB */}
-      {activeTab === 'past' && (
-        <section className="p-6 rounded-3xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark space-y-4">
-          <div className="space-y-1">
-            <h3 className="font-serif text-xl font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark">
-              Past Investment Cycles
-            </h3>
-            <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-              Reviewing your past rhythmic hours and mindful accomplishments.
-            </p>
-          </div>
-
-          <div className="divide-y divide-nudge-border/60 dark:divide-nudge-border-dark/60">
-            <div className="py-3 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                  August 2026
-                </p>
-                <span className="text-xs text-nudge-text-muted">
-                  48.0 hours logged • 3 pursuits completed
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
-                  100% Target
-                </span>
-                <button
-                  onClick={() => setActiveTab('export')}
-                  className="p-1.5 rounded-xl hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark text-nudge-text-secondary hover:text-nudge-blue transition-colors"
-                  title="Export August 2026 PDF"
-                >
-                  <FileText className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="py-3 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                  July 2026
-                </p>
-                <span className="text-xs text-nudge-text-muted">
-                  42.5 hours logged • 3 pursuits completed
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300">
-                  92% Target
-                </span>
-                <button
-                  onClick={() => setActiveTab('export')}
-                  className="p-1.5 rounded-xl hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark text-nudge-text-secondary hover:text-nudge-blue transition-colors"
-                  title="Export July 2026 PDF"
-                >
-                  <FileText className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* EXPORT TAB */}
-      {activeTab === 'export' && (
-        <TimeReportExport onBackToDashboard={() => setActiveTab('dashboard')} />
+      {/* MONTHLY REVIEW & EXPORT TAB */}
+      {activeTab === 'review' && (
+        <TimeReportExport
+          initialYear={selectedReportYear}
+          initialMonth={selectedReportMonth}
+          onBackToDashboard={() => setActiveTab('cycle')}
+        />
       )}
 
       {/* ADD / EDIT PURSUIT MODAL */}
