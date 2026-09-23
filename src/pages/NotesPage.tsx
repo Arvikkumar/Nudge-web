@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Inbox, Plus, X, Send } from 'lucide-react';
+import { Search, Inbox, X, Send } from 'lucide-react';
 import { NudgeTask } from '../types';
 import { TaskCard } from '../components/tasks/TaskCard';
 import { CreateTaskInput } from '../hooks/useNudgeTasks';
@@ -102,28 +102,16 @@ export const NotesPage: React.FC<NotesPageProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header section with Editorial Title matching AllTasksScreen.kt */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight">
-            Your notes,
-          </h1>
-          <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-blue dark:text-nudge-blue-light font-normal leading-tight">
-            always kept close.
-          </h1>
-          <p className="text-xs sm:text-sm text-nudge-text-secondary dark:text-nudge-text-secondary-dark pt-1">
-            Everything you’ve tucked away for later, calm and organized.
-          </p>
-        </div>
-
-        {onOpenComposer && (
-          <button
-            onClick={onOpenComposer}
-            className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-nudge-blue text-white text-xs font-semibold hover:bg-nudge-blue-light transition-colors shadow-xs"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">New Note</span>
-          </button>
-        )}
+      <div className="space-y-1">
+        <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight">
+          Your notes,
+        </h1>
+        <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-blue dark:text-nudge-blue-light font-normal leading-tight">
+          always kept close.
+        </h1>
+        <p className="text-xs sm:text-sm text-nudge-text-secondary dark:text-nudge-text-secondary-dark pt-1">
+          Everything you’ve tucked away for later, calm and organized.
+        </p>
       </div>
 
       {/* Search Input */}

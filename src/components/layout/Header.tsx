@@ -60,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Desktop Navigation Pills */}
-        <nav className="hidden sm:flex items-center gap-1 bg-nudge-parchment/70 dark:bg-nudge-parchment-dark/70 p-1 rounded-full border border-nudge-border/60 dark:border-nudge-border-dark/60">
+        <nav className="hidden md:flex items-center gap-1 bg-nudge-parchment/70 dark:bg-nudge-parchment-dark/70 p-1 rounded-full border border-nudge-border/60 dark:border-nudge-border-dark/60">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;

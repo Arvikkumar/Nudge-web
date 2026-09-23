@@ -563,6 +563,73 @@ export const TodayPage: React.FC<TodayPageProps> = ({
         </div>
       </section>
 
+      {/* Quick Add Bar with Natural Language & Voice Support matching QuickCaptureBar.kt */}
+      <section className="bg-white dark:bg-nudge-card-dark rounded-[18px] border border-nudge-border dark:border-nudge-border-dark p-2 shadow-xs space-y-1.5">
+        <form onSubmit={handleQuickAdd} className="flex items-center gap-2">
+          {/* LEFT: Microphone / voice recording button */}
+          <button
+            type="button"
+            onClick={handleToggleVoice}
+            className={`p-2 rounded-xl transition-all ${
+              isListening
+                ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 animate-pulse'
+                : 'text-nudge-blue hover:bg-nudge-blue/10 dark:hover:bg-nudge-blue/20'
+            }`}
+            title={isListening ? 'Listening…' : 'Speak reminder'}
+            data-testid="quick_capture_mic_button"
+          >
+            <Mic className="w-4 h-4 stroke-[2]" />
+          </button>
+
+          <input
+            type="text"
+            value={quickInput}
+            onChange={(e) => setQuickInput(e.target.value)}
+            placeholder="Add a quick thought…"
+            disabled={isSubmitting}
+            className="flex-1 px-2 py-2 text-sm bg-transparent text-nudge-text-primary dark:text-nudge-text-primary-dark placeholder:text-nudge-text-muted focus:outline-none"
+            data-testid="quick_capture_input"
+          />
+          <button
+            type="submit"
+            className="p-2 rounded-xl bg-nudge-blue text-white hover:bg-nudge-blue-light transition-colors disabled:opacity-40"
+            disabled={!quickInput.trim() || isSubmitting}
+            title="Add reminder"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </form>
+
+        {/* Live NLP Preview Pill */}
+        {showLivePreview && (
+          <div className="flex flex-wrap items-center gap-1.5 px-3 py-1 text-[11px] text-nudge-text-secondary dark:text-nudge-text-secondary-dark border-t border-nudge-border/40 dark:border-nudge-border-dark/40 pt-1.5">
+            <span className="flex items-center gap-1 text-nudge-blue font-semibold">
+              <Sparkles className="w-3 h-3" />
+              <span>Smart detection:</span>
+            </span>
+            <span className="px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark">
+              🗓 {liveNlp.extractedDate}
+            </span>
+            <span className="px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark">
+              ⏰ {liveNlp.extractedTime}
+            </span>
+            <span className="px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark">
+              🏷 {liveNlp.extractedCategory}
+            </span>
+            {liveNlp.extractedPriority === 'Important' && (
+              <span className="px-2 py-0.5 rounded-md bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 font-semibold">
+                🔥 Important
+              </span>
+            )}
+            {liveNlp.extractedRepeat !== 'Does not repeat' && (
+              <span className="px-2 py-0.5 rounded-md bg-nudge-blue/10 text-nudge-blue font-semibold">
+                🔄 {liveNlp.extractedRepeat}
+              </span>
+            )}
+          </div>
+        )}
+      </section>
+
       {/* Gentle Nudges List or Global Search Results */}
       <section className="space-y-3">
         {isSearchOrFilterActive ? (
@@ -727,73 +794,6 @@ export const TodayPage: React.FC<TodayPageProps> = ({
               </div>
             )}
           </>
-        )}
-      </section>
-
-      {/* Quick Add Bar with Natural Language & Voice Support matching QuickCaptureBar.kt */}
-      <section className="bg-white dark:bg-nudge-card-dark rounded-[18px] border border-nudge-border dark:border-nudge-border-dark p-2 shadow-xs space-y-1.5">
-        <form onSubmit={handleQuickAdd} className="flex items-center gap-2">
-          {/* LEFT: Microphone / voice recording button */}
-          <button
-            type="button"
-            onClick={handleToggleVoice}
-            className={`p-2 rounded-xl transition-all ${
-              isListening
-                ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 animate-pulse'
-                : 'text-nudge-blue hover:bg-nudge-blue/10 dark:hover:bg-nudge-blue/20'
-            }`}
-            title={isListening ? 'Listening…' : 'Speak reminder'}
-            data-testid="quick_capture_mic_button"
-          >
-            <Mic className="w-4 h-4 stroke-[2]" />
-          </button>
-
-          <input
-            type="text"
-            value={quickInput}
-            onChange={(e) => setQuickInput(e.target.value)}
-            placeholder="Add a quick thought…"
-            disabled={isSubmitting}
-            className="flex-1 px-2 py-2 text-sm bg-transparent text-nudge-text-primary dark:text-nudge-text-primary-dark placeholder:text-nudge-text-muted focus:outline-none"
-            data-testid="quick_capture_input"
-          />
-          <button
-            type="submit"
-            className="p-2 rounded-xl bg-nudge-blue text-white hover:bg-nudge-blue-light transition-colors disabled:opacity-40"
-            disabled={!quickInput.trim() || isSubmitting}
-            title="Add reminder"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
-
-        {/* Live NLP Preview Pill */}
-        {showLivePreview && (
-          <div className="flex flex-wrap items-center gap-1.5 px-3 py-1 text-[11px] text-nudge-text-secondary dark:text-nudge-text-secondary-dark border-t border-nudge-border/40 dark:border-nudge-border-dark/40 pt-1.5">
-            <span className="flex items-center gap-1 text-nudge-blue font-semibold">
-              <Sparkles className="w-3 h-3" />
-              <span>Smart detection:</span>
-            </span>
-            <span className="px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark">
-              🗓 {liveNlp.extractedDate}
-            </span>
-            <span className="px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark">
-              ⏰ {liveNlp.extractedTime}
-            </span>
-            <span className="px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark">
-              🏷 {liveNlp.extractedCategory}
-            </span>
-            {liveNlp.extractedPriority === 'Important' && (
-              <span className="px-2 py-0.5 rounded-md bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 font-semibold">
-                🔥 Important
-              </span>
-            )}
-            {liveNlp.extractedRepeat !== 'Does not repeat' && (
-              <span className="px-2 py-0.5 rounded-md bg-nudge-blue/10 text-nudge-blue font-semibold">
-                🔄 {liveNlp.extractedRepeat}
-              </span>
-            )}
-          </div>
         )}
       </section>
     </div>

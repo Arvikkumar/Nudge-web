@@ -44,7 +44,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-2 pt-1 pointer-events-none safe-bottom"
+      className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-2 pt-1 pointer-events-none safe-bottom md:hidden"
       data-testid="carved-bottom-bar"
     >
       <div className="max-w-md mx-auto relative h-[68px] pointer-events-auto filter drop-shadow-md">
