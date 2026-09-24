@@ -58,7 +58,7 @@ export const NotesPage: React.FC<NotesPageProps> = ({
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Voice input is not supported in this browser.");
+      alert('Voice input is not supported in this browser.');
       return;
     }
 
@@ -121,25 +121,21 @@ export const NotesPage: React.FC<NotesPageProps> = ({
     sessionStorage.removeItem('nudge_notes_search');
   };
 
-  const handleResetSearchAndCategory = () => {
-    setSearchQuery('');
-    setSelectedCategory('All');
-    sessionStorage.removeItem('nudge_notes_search');
-    sessionStorage.setItem('nudge_notes_category', 'All');
-  };
-
-  // Keep existing Notes categories intact
   const categories = ['All', 'Personal', 'Work', 'Home', 'Shopping'];
 
-  // Improved Notes search across note title, note content, and category
-  const filteredNotes = tasks.filter((item) =>
-    matchesNoteSearch(item, searchQuery, selectedCategory, todayIso)
-  );
+  // Filter tasks based on Search query & selected category
+  const filteredTasks = tasks.filter((task) => {
+    const matchesSearch = searchQuery.trim() === '' || matchesNoteSearch(task, searchQuery);
+    const matchesCat =
+      selectedCategory === 'All' ||
+      (task.category && task.category.toLowerCase() === selectedCategory.toLowerCase());
+    return matchesSearch && matchesCat;
+  });
 
-  const activeNotes = filteredNotes.filter((n) => !isTaskCompletedOnDate(n, todayIso));
-  const completedNotes = filteredNotes.filter((n) => isTaskCompletedOnDate(n, todayIso));
+  const activeNotes = filteredTasks.filter((t) => !isTaskCompletedOnDate(t, todayIso));
+  const completedNotes = filteredTasks.filter((t) => isTaskCompletedOnDate(t, todayIso));
 
-  const handleQuickAddNote = async (e: React.FormEvent) => {
+  const handleQuickAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     const raw = quickNoteText.trim();
     if (!raw || isSubmitting) return;
@@ -147,18 +143,18 @@ export const NotesPage: React.FC<NotesPageProps> = ({
     try {
       setIsSubmitting(true);
       const parsed = parseNudgeNlp(raw);
-      const category =
-        selectedCategory !== 'All' ? selectedCategory : parsed.extractedCategory;
 
       await onCreateTask({
         title: parsed.cleanTitle || raw,
-        dateLabel: parsed.extractedDate || 'Today',
-        startDate: parsed.startDateIso || todayIso,
-        timeLabel: parsed.extractedTime || 'Any time',
-        category,
-        priority: parsed.extractedPriority || 'Normal',
-        repeat: parsed.extractedRepeat || 'Does not repeat',
+        dateLabel: parsed.extractedDate,
+        startDate: parsed.startDateIso,
+        timeLabel: parsed.extractedTime,
+        category:
+          selectedCategory !== 'All' ? selectedCategory : parsed.extractedCategory,
+        priority: parsed.extractedPriority,
+        repeat: parsed.extractedRepeat,
       });
+
       setQuickNoteText('');
     } finally {
       setIsSubmitting(false);
@@ -166,206 +162,132 @@ export const NotesPage: React.FC<NotesPageProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header section with Editorial Title matching AllTasksScreen.kt */}
-      <div className="space-y-1">
+    <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-300" data-testid="all_tasks_screen">
+      {/* 1. Page Heading matching AllTasksScreen.kt */}
+      <div className="pt-1 pb-1">
         <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight">
           Your notes,
         </h1>
         <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-blue dark:text-nudge-blue-light font-normal leading-tight">
           always kept close.
         </h1>
-        <p className="text-xs sm:text-sm text-nudge-text-secondary dark:text-nudge-text-secondary-dark pt-1">
-          Everything you’ve tucked away for later, calm and organized.
-        </p>
       </div>
 
-      {/* Search Input */}
+      {/* 2. Search Box matching AllTasksScreen.kt */}
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-nudge-text-muted" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder="Search all notes & nudges by keyword or topic…"
-          className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark text-sm text-nudge-text-primary dark:text-nudge-text-primary-dark placeholder:text-nudge-text-muted shadow-xs focus:outline-none focus:border-nudge-blue"
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={handleClearSearch}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-nudge-text-muted hover:text-nudge-text-primary rounded-full transition-colors"
-            aria-label="Clear search"
-            title="Clear search"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
+        <div className="flex items-center w-full px-3.5 py-2.5 rounded-[14px] bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark focus-within:border-nudge-blue dark:focus-within:border-nudge-blue shadow-2xs transition-all">
+          <Search className="w-5 h-5 text-nudge-text-secondary dark:text-nudge-text-secondary-dark mr-2.5 shrink-0" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="Search, find, and keep moving."
+            className="flex-1 bg-transparent text-sm text-nudge-text-primary dark:text-nudge-text-primary-dark placeholder:text-nudge-text-muted focus:outline-none"
+            data-testid="search_tasks_input"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="p-1 rounded-full text-nudge-text-muted hover:text-nudge-text-primary hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark cursor-pointer transition-colors"
+              title="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          ) : (
+            <span className="px-2 py-0.5 rounded-lg bg-nudge-parchment dark:bg-nudge-parchment-dark text-nudge-blue dark:text-nudge-blue-light text-[11px] font-bold">
+              {tasks.length}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Category Filter Chips */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+      {/* 3. Category Filter Chips */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
         {categories.map((cat) => {
           const isSelected = selectedCategory === cat;
           return (
             <button
               key={cat}
-              type="button"
               onClick={() => handleCategoryChange(cat)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer ${
                 isSelected
                   ? 'bg-nudge-blue text-white shadow-xs font-semibold'
-                  : 'bg-white dark:bg-nudge-card-dark text-nudge-text-secondary dark:text-nudge-text-secondary-dark border border-nudge-border dark:border-nudge-border-dark hover:bg-nudge-parchment dark:hover:bg-zinc-800'
+                  : 'bg-white dark:bg-nudge-card-dark text-nudge-text-secondary dark:text-nudge-text-secondary-dark border border-nudge-border dark:border-nudge-border-dark hover:border-nudge-blue'
               }`}
             >
               {cat !== 'All' && (
-                <span
-                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                    isSelected ? 'bg-white' : getCategoryDotColor(cat)
-                  }`}
-                />
+                <span className={`w-1.5 h-1.5 rounded-full ${getCategoryDotColor(cat)}`} />
               )}
-              <span>{cat}</span>
+              {cat}
             </button>
           );
         })}
-
-        {(searchQuery || selectedCategory !== 'All') && (
-          <button
-            type="button"
-            onClick={handleResetSearchAndCategory}
-            className="text-[11px] font-medium text-nudge-text-muted hover:text-nudge-blue px-2 py-1 rounded-md transition-colors whitespace-nowrap ml-1 underline decoration-dotted"
-            title="Reset all filters"
-          >
-            Reset
-          </button>
-        )}
       </div>
 
-      {/* Quick Add Note Bar with Voice Input */}
-      <section className="bg-white dark:bg-nudge-card-dark rounded-2xl border border-nudge-border dark:border-nudge-border-dark p-2 shadow-xs">
-        <form onSubmit={handleQuickAddNote} className="flex items-center gap-1.5 sm:gap-2">
-          {/* Voice Input Button */}
-          <button
-            type="button"
-            onClick={handleToggleVoice}
-            className={`p-2 rounded-xl transition-all shrink-0 ${
-              isListening
-                ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 animate-pulse'
-                : 'text-nudge-blue hover:bg-nudge-blue/10 dark:hover:bg-nudge-blue/20'
-            }`}
-            title={isListening ? 'Listening…' : 'Speak note'}
-            aria-label={isListening ? 'Stop listening' : 'Record voice note'}
-            data-testid="notes_quick_capture_mic_button"
-          >
-            <Mic className="w-4 h-4" />
-          </button>
+      {/* 4. Quick Add Bar for Notes */}
+      <form
+        onSubmit={handleQuickAdd}
+        className="flex items-center gap-2 p-1.5 rounded-[18px] bg-white dark:bg-nudge-card-dark border border-nudge-border/80 dark:border-nudge-border-dark/80 shadow-2xs"
+      >
+        <button
+          type="button"
+          onClick={handleToggleVoice}
+          className={`p-2 rounded-xl transition-all ${
+            isListening
+              ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 animate-pulse'
+              : 'text-nudge-blue hover:bg-nudge-blue/10 dark:hover:bg-nudge-blue/20'
+          }`}
+          title={isListening ? 'Listening…' : 'Speak note'}
+          data-testid="notes_quick_capture_mic_button"
+        >
+          <Mic className="w-4 h-4" />
+        </button>
+        <input
+          ref={quickInputRef}
+          type="text"
+          value={quickNoteText}
+          onChange={(e) => setQuickNoteText(e.target.value)}
+          placeholder="Add a thought to your notes…"
+          disabled={isSubmitting}
+          className="flex-1 px-2 py-1.5 text-sm bg-transparent text-nudge-text-primary dark:text-nudge-text-primary-dark placeholder:text-nudge-text-muted focus:outline-none"
+        />
+        <button
+          type="submit"
+          disabled={!quickNoteText.trim() || isSubmitting}
+          className="p-2 rounded-xl bg-nudge-blue text-white hover:bg-nudge-blue-light transition-colors disabled:opacity-40 cursor-pointer"
+          title="Add note"
+        >
+          <Send className="w-4 h-4" />
+        </button>
+      </form>
 
-          <input
-            ref={quickInputRef}
-            type="text"
-            value={quickNoteText}
-            onChange={(e) => setQuickNoteText(e.target.value)}
-            placeholder={
-              selectedCategory === 'All'
-                ? 'Keep a note close…'
-                : `Keep a note in ${selectedCategory}…`
-            }
-            disabled={isSubmitting}
-            className="flex-1 px-2.5 py-2 text-sm bg-transparent text-nudge-text-primary dark:text-nudge-text-primary-dark placeholder:text-nudge-text-muted focus:outline-none min-w-0"
-          />
-
-          <button
-            type="submit"
-            className="p-2 rounded-xl bg-nudge-blue text-white hover:bg-nudge-blue-light transition-colors disabled:opacity-40 shrink-0"
-            disabled={!quickNoteText.trim() || isSubmitting}
-            title="Save note"
-            aria-label="Save note"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
-      </section>
-
-      {/* Notes Results or Empty State */}
-      {filteredNotes.length === 0 ? (
-        <div className="text-center py-10 bg-white dark:bg-nudge-card-dark rounded-2xl border border-nudge-border dark:border-nudge-border-dark p-6 space-y-3">
-          <div className="w-10 h-10 rounded-full bg-nudge-parchment dark:bg-zinc-800/80 mx-auto flex items-center justify-center text-nudge-text-muted">
-            <Search className="w-5 h-5 stroke-[1.8]" />
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-              {searchQuery.trim()
-                ? 'No matching notes'
-                : selectedCategory === 'All'
-                ? 'No notes yet'
-                : `No notes in ${selectedCategory}`}
-            </p>
-            <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark max-w-sm mx-auto">
-              {searchQuery.trim()
-                ? `We couldn't find any notes matching "${searchQuery.trim()}".`
-                : 'Keep ideas, reminders, and thoughts tucked away calmly for later.'}
-            </p>
-          </div>
-          <div className="pt-1 flex items-center justify-center gap-2">
-            {searchQuery.trim() || selectedCategory !== 'All' ? (
-              <button
-                type="button"
-                onClick={handleResetSearchAndCategory}
-                className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-nudge-parchment dark:bg-zinc-800 text-nudge-text-primary dark:text-nudge-text-primary-dark hover:bg-nudge-border/40 border border-nudge-border dark:border-nudge-border-dark transition-colors inline-flex items-center gap-1.5"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>Clear search & filter</span>
-              </button>
-            ) : null}
-            {!searchQuery.trim() && (
-              <button
-                type="button"
-                onClick={() => {
-                  quickInputRef.current?.focus();
-                  quickInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }}
-                className="px-4 py-1.5 rounded-full text-xs font-medium bg-nudge-blue text-white hover:bg-nudge-blue-light transition-colors shadow-xs"
-              >
-                Add a thought
-              </button>
-            )}
-          </div>
+      {/* 5. Tasks List matching AllTasksScreen.kt */}
+      {filteredTasks.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-nudge-card-dark rounded-[20px] border border-nudge-border dark:border-nudge-border-dark p-6 space-y-2 shadow-2xs">
+          <p className="text-sm font-medium text-nudge-text-primary dark:text-nudge-text-primary-dark">
+            {searchQuery.trim()
+              ? `No nudges found for "${searchQuery}".`
+              : 'No notes yet.'}
+          </p>
+          <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
+            Tap the + button below to write down a gentle thought.
+          </p>
         </div>
       ) : (
-        <>
-          {/* Active Notes List */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-sm font-semibold tracking-wide text-nudge-text-secondary dark:text-nudge-text-secondary-dark uppercase">
-                Active Notes ({activeNotes.length})
-              </h2>
-            </div>
-
-            {activeNotes.length === 0 ? (
-              <div className="text-center py-8 bg-white dark:bg-nudge-card-dark rounded-2xl border border-nudge-border dark:border-nudge-border-dark p-6 space-y-2">
-                <Inbox className="w-7 h-7 mx-auto text-nudge-text-muted mb-1 stroke-[1.5]" />
-                <p className="text-sm font-medium text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                  No active notes found
-                </p>
-                <p className="text-xs text-nudge-text-muted max-w-xs mx-auto">
-                  All matching notes are completed or archived.
-                </p>
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      quickInputRef.current?.focus();
-                      quickInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }}
-                    className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-nudge-blue/10 hover:bg-nudge-blue/20 text-nudge-blue dark:bg-nudge-blue/20 dark:text-nudge-blue-light transition-colors"
-                  >
-                    Add a thought
-                  </button>
-                </div>
+        <div className="space-y-4">
+          {/* ACTIVE SECTION */}
+          {activeNotes.length > 0 && (
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-bold tracking-[1.2px] uppercase text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
+                  ACTIVE
+                </span>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-nudge-parchment dark:bg-nudge-parchment-dark text-nudge-blue dark:text-nudge-blue-light border border-nudge-border/60 dark:border-nudge-border-dark/60">
+                  {activeNotes.length} to do
+                </span>
               </div>
-            ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 {activeNotes.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -375,20 +297,24 @@ export const NotesPage: React.FC<NotesPageProps> = ({
                     onEdit={onEditTask}
                     onDelete={onDeleteTask}
                     onSnooze={onSnoozeTask}
-                    isNoteContext
                   />
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Completed / Archived Notes List */}
+          {/* COMPLETED SECTION */}
           {completedNotes.length > 0 && (
-            <div className="space-y-3 pt-2">
-              <h2 className="text-sm font-semibold tracking-wide text-nudge-text-secondary dark:text-nudge-text-secondary-dark uppercase px-1">
-                Archived Notes ({completedNotes.length})
-              </h2>
-              <div className="space-y-2.5">
+            <div className="space-y-2.5 pt-2">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-bold tracking-[1.2px] uppercase text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
+                  COMPLETED
+                </span>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-nudge-parchment dark:bg-nudge-parchment-dark text-nudge-text-secondary dark:text-nudge-text-secondary-dark border border-nudge-border/60 dark:border-nudge-border-dark/60">
+                  {completedNotes.length} done
+                </span>
+              </div>
+              <div className="space-y-2">
                 {completedNotes.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -398,13 +324,12 @@ export const NotesPage: React.FC<NotesPageProps> = ({
                     onEdit={onEditTask}
                     onDelete={onDeleteTask}
                     onSnooze={onSnoozeTask}
-                    isNoteContext
                   />
                 ))}
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

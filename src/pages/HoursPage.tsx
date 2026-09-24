@@ -14,13 +14,15 @@ import {
   X,
   CheckCircle,
   FileText,
+  ChevronRight,
+  Archive,
 } from 'lucide-react';
 import { useHoursTracker } from '../hooks/useHoursTracker';
 import { Pursuit } from '../types';
 import { TimeReportExport } from '../components/hours/TimeReportExport';
 
 export const HoursPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'cycle' | 'review'>('cycle');
+  const [activeTab, setActiveTab] = useState<'cycle' | 'past_months' | 'review'>('cycle');
   const [selectedReportYear, setSelectedReportYear] = useState<number>(new Date().getFullYear());
   const [selectedReportMonth, setSelectedReportMonth] = useState<number>(new Date().getMonth() + 1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -45,7 +47,8 @@ export const HoursPage: React.FC = () => {
     addManualHours,
   } = useHoursTracker();
 
-  const currentMonthName = new Date().toLocaleString('en-US', {
+  const now = new Date();
+  const currentMonthName = now.toLocaleString('en-US', {
     month: 'long',
     year: 'numeric',
   });
@@ -65,9 +68,15 @@ export const HoursPage: React.FC = () => {
 
   // Handlers for switching to Monthly Review & Export
   const handleOpenCurrentMonthExport = () => {
-    const now = new Date();
-    setSelectedReportYear(now.getFullYear());
-    setSelectedReportMonth(now.getMonth() + 1);
+    const current = new Date();
+    setSelectedReportYear(current.getFullYear());
+    setSelectedReportMonth(current.getMonth() + 1);
+    setActiveTab('review');
+  };
+
+  const handleSelectPastMonth = (year: number, month: number) => {
+    setSelectedReportYear(year);
+    setSelectedReportMonth(month);
     setActiveTab('review');
   };
 
@@ -104,24 +113,34 @@ export const HoursPage: React.FC = () => {
       await editPursuit({
         ...editingPursuit,
         name: pursuitName.trim(),
-        targetHours: Number(pursuitTarget) || 20,
-        emoji: pursuitEmoji || '🎯',
+        targetHours: Number(pursuitTarget) || 1,
+        emoji: pursuitEmoji,
       });
     } else {
       await createPursuit({
         name: pursuitName.trim(),
-        targetHours: Number(pursuitTarget) || 20,
-        emoji: pursuitEmoji || '🎯',
+        targetHours: Number(pursuitTarget) || 1,
+        emoji: pursuitEmoji,
       });
     }
 
     setIsAddModalOpen(false);
   };
 
+  // Generate list of past 6 months for "Past Months" tab
+  const pastMonthsList = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (i + 1), 1);
+    return {
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      name: d.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
+    };
+  });
+
   const emojiOptions = ['📚', '✍️', '🧘', '💻', '🎨', '🏃', '🎵', '🌿', '🎯', '☕'];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12 sm:pb-8 animate-in fade-in duration-300">
+    <div className="max-w-4xl mx-auto space-y-6 pb-12 sm:pb-8 animate-in fade-in duration-300" data-testid="hours_screen">
       {/* Header section with Editorial Title matching LifeInHoursScreen.kt */}
       <div className="space-y-1">
         <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight">
@@ -135,32 +154,34 @@ export const HoursPage: React.FC = () => {
         </p>
       </div>
 
-      {/* Sub-tab navigation: Clean Segmented Control */}
-      <div className="flex items-center p-1 rounded-2xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-xs max-w-md w-full">
-        {(['cycle', 'review'] as const).map((tab) => {
-          const labels = {
-            cycle: 'Current Cycle',
-            review: 'Monthly Review & Export',
-          };
-          const isSelected = activeTab === tab;
+      {/* Sub-tab navigation: Clean Segmented Control matching HoursSubNavTabs in Android */}
+      <div className="flex items-center p-1 rounded-2xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-xs max-w-lg w-full">
+        {(
+          [
+            { id: 'cycle', label: 'Current Cycle' },
+            { id: 'past_months', label: 'Past Months' },
+            { id: 'review', label: 'Monthly Review & Export' },
+          ] as const
+        ).map((tab) => {
+          const isSelected = activeTab === tab.id;
           return (
             <button
-              key={tab}
+              key={tab.id}
               onClick={() => {
-                if (tab === 'review') {
-                  const now = new Date();
-                  setSelectedReportYear(now.getFullYear());
-                  setSelectedReportMonth(now.getMonth() + 1);
+                if (tab.id === 'review') {
+                  const current = new Date();
+                  setSelectedReportYear(current.getFullYear());
+                  setSelectedReportMonth(current.getMonth() + 1);
                 }
-                setActiveTab(tab);
+                setActiveTab(tab.id);
               }}
-              className={`flex-1 py-2 px-2.5 sm:px-4 rounded-xl text-xs font-medium transition-all text-center leading-tight ${
+              className={`flex-1 py-2 px-2 sm:px-3 rounded-xl text-xs font-medium transition-all text-center leading-tight cursor-pointer ${
                 isSelected
                   ? 'bg-nudge-blue text-white shadow-xs font-semibold'
                   : 'text-nudge-text-secondary dark:text-nudge-text-secondary-dark hover:text-nudge-text-primary dark:hover:text-nudge-text-primary-dark'
               }`}
             >
-              {labels[tab]}
+              {tab.label}
             </button>
           );
         })}
@@ -199,51 +220,48 @@ export const HoursPage: React.FC = () => {
               {activeTimer.isRunning ? (
                 <button
                   onClick={pauseTimer}
+                  className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
                   title="Pause tracking"
-                  className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
                 >
-                  <Pause className="w-4 h-4 fill-white" />
+                  <Pause className="w-4 h-4" />
                 </button>
               ) : (
                 <button
                   onClick={resumeTimer}
+                  className="p-2.5 rounded-full bg-white text-blue-600 hover:bg-blue-50 transition-colors"
                   title="Resume tracking"
-                  className="p-2 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
                 >
-                  <Play className="w-4 h-4 fill-white ml-0.5" />
+                  <Play className="w-4 h-4 fill-current" />
                 </button>
               )}
-
               <button
                 onClick={stopTimer}
-                title="Stop and save session"
-                className="p-2 rounded-full bg-white/20 hover:bg-red-500/80 text-white transition-colors"
+                className="p-2.5 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+                title="Save & log hours"
               >
-                <Square className="w-4 h-4 fill-white" />
+                <Square className="w-4 h-4" />
               </button>
             </div>
           </div>
         </section>
       )}
 
+      {/* 1. CURRENT CYCLE TAB */}
       {activeTab === 'cycle' && (
         <>
-          {/* Monthly Overview Card: Editorial Visual Hierarchy (Month -> Total Hours -> Pace/Target -> Progress) */}
-          <section className="rounded-3xl bg-nudge-parchment dark:bg-nudge-parchment-dark border border-nudge-border/80 dark:border-nudge-border-dark/80 p-5 sm:p-6 shadow-xs relative overflow-hidden space-y-4">
-            {/* Top row: Cycle Month on left, Understated Secondary Export PDF on right */}
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-nudge-blue">
-                  Current Cycle
-                </span>
-                <h2 className="font-editorial-serif text-2xl sm:text-3xl font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark leading-tight mt-0.5">
+          {/* Main Dashboard Hero Card */}
+          <section className="p-6 rounded-[28px] bg-gradient-to-br from-nudge-parchment/80 to-white dark:from-nudge-card-dark dark:to-neutral-900 border border-nudge-border dark:border-nudge-border-dark shadow-2xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Calendar className="w-5 h-5 text-nudge-blue" />
+                <h2 className="text-base font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
                   {currentMonthName}
                 </h2>
               </div>
 
               <button
                 onClick={handleOpenCurrentMonthExport}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-nudge-card-dark/80 hover:bg-white dark:hover:bg-nudge-card-dark border border-nudge-border/70 dark:border-nudge-border-dark/70 text-xs font-medium text-nudge-text-secondary dark:text-nudge-text-secondary-dark hover:text-nudge-text-primary dark:hover:text-nudge-text-primary-dark transition-colors shadow-2xs shrink-0"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-nudge-card-dark/80 hover:bg-white dark:hover:bg-nudge-card-dark border border-nudge-border/70 dark:border-nudge-border-dark/70 text-xs font-medium text-nudge-text-secondary dark:text-nudge-text-secondary-dark hover:text-nudge-text-primary dark:hover:text-nudge-text-primary-dark transition-colors shadow-2xs shrink-0 cursor-pointer"
                 title="Review & Export Current Month PDF"
               >
                 <FileText className="w-3.5 h-3.5 text-nudge-blue" />
@@ -289,7 +307,7 @@ export const HoursPage: React.FC = () => {
               </h3>
               <button
                 onClick={handleOpenAddModal}
-                className="text-xs font-medium text-nudge-blue hover:text-nudge-blue-light flex items-center gap-1 px-3 py-1 rounded-full bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-2xs hover:bg-nudge-parchment transition-colors"
+                className="text-xs font-medium text-nudge-blue hover:text-nudge-blue-light flex items-center gap-1 px-3 py-1 rounded-full bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-2xs hover:bg-nudge-parchment transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Pursuit</span>
@@ -298,69 +316,51 @@ export const HoursPage: React.FC = () => {
 
             <div className="space-y-3">
               {pursuits.map((item) => {
-                const logged = (item.loggedMinutes || 0) / 60;
+                const loggedHrs = (item.loggedMinutes || 0) / 60;
                 const pct =
                   item.targetHours > 0
-                    ? Math.round((logged / item.targetHours) * 100)
+                    ? Math.min(Math.round((loggedHrs / item.targetHours) * 100), 100)
                     : 0;
-                const isTrackingThis =
-                  activeTimer?.pursuitId === item.id;
+                const isCurrentlyTracking =
+                  activeTimer && activeTimer.pursuitId === item.id;
 
                 return (
                   <div
                     key={item.id}
-                    className={`p-4 sm:p-5 rounded-2xl bg-white dark:bg-nudge-card-dark border transition-all shadow-2xs space-y-3 ${
-                      isTrackingThis
-                        ? 'border-nudge-blue ring-1 ring-nudge-blue/30'
-                        : 'border-nudge-border dark:border-nudge-border-dark'
-                    }`}
+                    className="p-4 rounded-2xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-2xs hover:border-nudge-blue/40 transition-all space-y-3"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-2xl select-none shrink-0">{item.emoji}</span>
-                        <div className="min-w-0">
-                          <h4 className="text-sm font-medium text-nudge-text-primary dark:text-nudge-text-primary-dark truncate">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl p-2 rounded-xl bg-nudge-parchment dark:bg-nudge-parchment-dark shrink-0">
+                          {item.emoji}
+                        </span>
+                        <div>
+                          <h4 className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
                             {item.name}
                           </h4>
-                          <span className="text-xs text-nudge-text-muted dark:text-nudge-text-muted-dark">
-                            {logged.toFixed(1)} hrs invested • Goal: {item.targetHours} hrs
-                          </span>
+                          <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark mt-0.5">
+                            <span className="font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
+                              {loggedHrs.toFixed(1)}h
+                            </span>{' '}
+                            of {item.targetHours}h monthly goal
+                          </p>
                         </div>
                       </div>
 
+                      {/* Right Quick Controls */}
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {/* Start / Pause / Tracking Button */}
-                        {isTrackingThis ? (
-                          <div className="flex items-center gap-1">
-                            {activeTimer?.isRunning ? (
-                              <button
-                                onClick={pauseTimer}
-                                className="px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 transition-colors flex items-center gap-1"
-                              >
-                                <Pause className="w-3 h-3 fill-amber-700" />
-                                <span>Pause</span>
-                              </button>
-                            ) : (
-                              <button
-                                onClick={resumeTimer}
-                                className="px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition-colors flex items-center gap-1"
-                              >
-                                <Play className="w-3 h-3 fill-emerald-700" />
-                                <span>Resume</span>
-                              </button>
-                            )}
-                            <button
-                              onClick={stopTimer}
-                              title="Stop & Log Session"
-                              className="p-1.5 rounded-full bg-nudge-parchment dark:bg-nudge-parchment-dark text-nudge-text-secondary hover:text-red-500 transition-colors"
-                            >
-                              <Square className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                        {isCurrentlyTracking ? (
+                          <button
+                            onClick={stopTimer}
+                            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-1.5 shadow-2xs"
+                          >
+                            <Square className="w-3 h-3" />
+                            <span>Stop</span>
+                          </button>
                         ) : (
                           <button
                             onClick={() => startTimer(item.id)}
-                            className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-nudge-parchment dark:bg-nudge-parchment-dark text-nudge-text-primary dark:text-nudge-text-primary-dark hover:bg-nudge-blue hover:text-white transition-all flex items-center gap-1.5 shadow-2xs"
+                            className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-nudge-parchment dark:bg-nudge-parchment-dark text-nudge-text-primary dark:text-nudge-text-primary-dark hover:bg-nudge-blue hover:text-white transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
                           >
                             <Play className="w-3 h-3 fill-current" />
                             <span>Track</span>
@@ -371,7 +371,7 @@ export const HoursPage: React.FC = () => {
                         <button
                           onClick={() => handleOpenEditModal(item)}
                           title="Edit Pursuit"
-                          className="p-1.5 rounded-lg hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark text-nudge-text-muted hover:text-nudge-text-primary transition-colors"
+                          className="p-1.5 rounded-lg hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark text-nudge-text-muted hover:text-nudge-text-primary transition-colors cursor-pointer"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
@@ -384,7 +384,7 @@ export const HoursPage: React.FC = () => {
                             }
                           }}
                           title="Delete Pursuit"
-                          className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-nudge-text-muted hover:text-red-500 transition-colors"
+                          className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-nudge-text-muted hover:text-red-500 transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -398,14 +398,14 @@ export const HoursPage: React.FC = () => {
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => addManualHours(item.id, 0.5)}
-                            className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark hover:bg-nudge-blue hover:text-white text-nudge-blue transition-colors"
+                            className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark hover:bg-nudge-blue hover:text-white text-nudge-blue transition-colors cursor-pointer"
                             title="Add 30 minutes"
                           >
                             +30m
                           </button>
                           <button
                             onClick={() => addManualHours(item.id, 1)}
-                            className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark hover:bg-nudge-blue hover:text-white text-nudge-blue transition-colors"
+                            className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark hover:bg-nudge-blue hover:text-white text-nudge-blue transition-colors cursor-pointer"
                             title="Add 1 hour"
                           >
                             +1h
@@ -427,7 +427,50 @@ export const HoursPage: React.FC = () => {
         </>
       )}
 
-      {/* MONTHLY REVIEW & EXPORT TAB */}
+      {/* 2. PAST MONTHS TAB matching HoursTab.PAST_MONTHS */}
+      {activeTab === 'past_months' && (
+        <section className="space-y-3">
+          <div className="px-1">
+            <h3 className="text-xs font-semibold tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark uppercase">
+              Historical Monthly Cycles
+            </h3>
+            <p className="text-xs text-nudge-text-muted dark:text-nudge-text-muted-dark mt-0.5">
+              Review completed cycles and export historical reports.
+            </p>
+          </div>
+
+          <div className="space-y-2.5">
+            {pastMonthsList.map((m) => (
+              <div
+                key={`${m.year}-${m.month}`}
+                className="p-4 rounded-2xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-2xs hover:border-nudge-blue/50 transition-all flex items-center justify-between gap-4"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Archive className="w-4 h-4 text-nudge-blue" />
+                    <h4 className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
+                      {m.name}
+                    </h4>
+                  </div>
+                  <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
+                    Completed monthly cycle
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => handleSelectPastMonth(m.year, m.month)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-nudge-parchment dark:bg-nudge-parchment-dark text-nudge-blue dark:text-nudge-blue-light text-xs font-semibold hover:bg-nudge-blue hover:text-white transition-colors cursor-pointer"
+                >
+                  <span>Review & PDF</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 3. MONTHLY REVIEW & EXPORT TAB */}
       {activeTab === 'review' && (
         <TimeReportExport
           initialYear={selectedReportYear}
@@ -448,72 +491,81 @@ export const HoursPage: React.FC = () => {
                 onClick={() => setIsAddModalOpen(false)}
                 className="p-1.5 rounded-full hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark text-nudge-text-muted hover:text-nudge-text-primary"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSavePursuit} className="space-y-4">
+              {/* Emoji Picker */}
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark block mb-1">
-                  Pursuit Name
+                <label className="block text-xs font-semibold text-nudge-text-secondary dark:text-nudge-text-secondary-dark uppercase tracking-wider mb-2">
+                  Icon
                 </label>
-                <input
-                  type="text"
-                  value={pursuitName}
-                  onChange={(e) => setPursuitName(e.target.value)}
-                  placeholder="e.g. Japanese Language Study"
-                  required
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-nudge-border dark:border-nudge-border-dark bg-nudge-parchment/40 dark:bg-nudge-parchment-dark/40 text-sm text-nudge-text-primary dark:text-nudge-text-primary-dark focus:outline-none focus:border-nudge-blue"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark block mb-1">
-                  Monthly Goal (Hours)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="300"
-                  value={pursuitTarget}
-                  onChange={(e) => setPursuitTarget(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-nudge-border dark:border-nudge-border-dark bg-nudge-parchment/40 dark:bg-nudge-parchment-dark/40 text-sm text-nudge-text-primary dark:text-nudge-text-primary-dark focus:outline-none focus:border-nudge-blue"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark block mb-1">
-                  Symbol / Emoji
-                </label>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {emojiOptions.map((em) => (
+                <div className="flex flex-wrap gap-2">
+                  {emojiOptions.map((e) => (
                     <button
+                      key={e}
                       type="button"
-                      key={em}
-                      onClick={() => setPursuitEmoji(em)}
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-all ${
-                        pursuitEmoji === em
-                          ? 'bg-nudge-blue text-white shadow-xs scale-105'
-                          : 'bg-nudge-parchment dark:bg-nudge-parchment-dark hover:bg-nudge-blue/10'
+                      onClick={() => setPursuitEmoji(e)}
+                      className={`text-xl p-2 rounded-xl border transition-all ${
+                        pursuitEmoji === e
+                          ? 'border-nudge-blue bg-nudge-blue/10 scale-105'
+                          : 'border-nudge-border dark:border-nudge-border-dark hover:bg-nudge-parchment'
                       }`}
                     >
-                      {em}
+                      {e}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              {/* Pursuit Name */}
+              <div>
+                <label className="block text-xs font-semibold text-nudge-text-secondary dark:text-nudge-text-secondary-dark uppercase tracking-wider mb-1">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={pursuitName}
+                  onChange={(e) => setPursuitName(e.target.value)}
+                  placeholder="e.g. Reading, Writing, Deep Work..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-nudge-border dark:border-nudge-border-dark bg-transparent text-sm text-nudge-text-primary dark:text-nudge-text-primary-dark focus:outline-none focus:border-nudge-blue"
+                />
+              </div>
+
+              {/* Monthly Target (Hours) */}
+              <div>
+                <label className="block text-xs font-semibold text-nudge-text-secondary dark:text-nudge-text-secondary-dark uppercase tracking-wider mb-1">
+                  Monthly Target (Hours)
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="1"
+                    max="300"
+                    required
+                    value={pursuitTarget}
+                    onChange={(e) => setPursuitTarget(Number(e.target.value))}
+                    className="w-24 px-3.5 py-2.5 rounded-xl border border-nudge-border dark:border-nudge-border-dark bg-transparent text-sm text-nudge-text-primary dark:text-nudge-text-primary-dark focus:outline-none focus:border-nudge-blue"
+                  />
+                  <span className="text-xs text-nudge-text-muted">
+                    ~{(pursuitTarget / 4).toFixed(1)} hrs / week
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-medium text-nudge-text-secondary dark:text-nudge-text-secondary-dark hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark"
+                  className="px-4 py-2 rounded-xl text-xs font-medium text-nudge-text-secondary hover:text-nudge-text-primary transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-nudge-blue text-white hover:bg-nudge-blue-light transition-colors shadow-xs"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-nudge-blue text-white hover:bg-nudge-blue-light transition-colors"
                 >
                   {editingPursuit ? 'Save Changes' : 'Create Pursuit'}
                 </button>

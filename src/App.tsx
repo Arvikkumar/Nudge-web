@@ -210,6 +210,7 @@ export const App: React.FC = () => {
           onEditTask={handleOpenEditModal}
           onDeleteTask={handleDeleteTaskWithUndo}
           onSnoozeTask={snoozeTask}
+          onOpenComposer={handleOpenCreateModal}
           deepDiveState={deepDiveState}
           onOpenDeepDiveConfig={() => setIsDeepDiveConfigOpen(true)}
           onOpenDeepDiveActive={() => setIsDeepDiveActiveOpen(true)}
@@ -223,7 +224,6 @@ export const App: React.FC = () => {
           onEditTask={handleOpenEditModal}
           onDeleteTask={handleDeleteTaskWithUndo}
           onSnoozeTask={snoozeTask}
-          onOpenComposer={handleOpenCreateModal}
         />
       )}
       {activeView === 'hours' && <HoursPage />}

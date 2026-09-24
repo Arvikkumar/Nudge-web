@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Send, Sparkles, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Mic } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { NudgeTask } from '../types';
 import { TaskCard } from '../components/tasks/TaskCard';
 import { CreateTaskInput } from '../hooks/useNudgeTasks';
@@ -16,6 +16,7 @@ import { MonthCalendar } from '../components/calendar/MonthCalendar';
 import { EventCard } from '../components/calendar/EventCard';
 import { getEventsForDate, hasEventOnDate } from '../utils/nudgeEvents';
 import { DeepDiveState } from '../utils/deepDive';
+import { QuickCaptureBar } from '../components/common/QuickCaptureBar';
 
 interface TodayPageProps {
   tasks: NudgeTask[];
@@ -24,6 +25,7 @@ interface TodayPageProps {
   onEditTask: (task: NudgeTask) => void;
   onDeleteTask: (id: number) => void;
   onSnoozeTask?: (id: number, snoozeType: '30m' | 'tonight' | 'tomorrow') => void;
+  onOpenComposer?: (draftText?: string, dateLabel?: string) => void;
   deepDiveState?: DeepDiveState;
   onOpenDeepDiveConfig?: () => void;
   onOpenDeepDiveActive?: () => void;
@@ -36,6 +38,7 @@ export const TodayPage: React.FC<TodayPageProps> = ({
   onEditTask,
   onDeleteTask,
   onSnoozeTask,
+  onOpenComposer,
   deepDiveState,
   onOpenDeepDiveConfig,
   onOpenDeepDiveActive,
@@ -54,9 +57,6 @@ export const TodayPage: React.FC<TodayPageProps> = ({
 
   // Toggle for full month calendar view
   const [isCalendarOpen, setIsCalendarOpen] = useState<boolean>(false);
-
-  const [quickInput, setQuickInput] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Selected date object
   const selectedDate = useMemo(() => parseIsoToDate(selectedDateIso), [selectedDateIso]);
@@ -92,8 +92,6 @@ export const TodayPage: React.FC<TodayPageProps> = ({
   };
 
   // Generate 7-day date strip
-  // If selectedDate is within today-2 to today+4, display standard window
-  // Otherwise, center the 7-day strip around selectedDate
   const dateStripDays = useMemo(() => {
     const todayMillis = today.getTime();
     const selMillis = selectedDate.getTime();
@@ -101,7 +99,6 @@ export const TodayPage: React.FC<TodayPageProps> = ({
 
     let startOffsetFromToday = -2;
     if (diffDays < -2 || diffDays > 4) {
-      // Center around selected date
       startOffsetFromToday = diffDays - 3;
     }
 
@@ -146,53 +143,38 @@ export const TodayPage: React.FC<TodayPageProps> = ({
     return tasksForSelectedDate.filter((t) => isTaskCompletedOnDate(t, selectedDateIso));
   }, [tasksForSelectedDate, selectedDateIso]);
 
-  // Live NLP preview
-  const liveNlp = quickInput.trim().length > 3 ? parseNudgeNlp(quickInput) : null;
-  const showLivePreview =
-    liveNlp &&
-    (liveNlp.hasExplicitDateTime ||
-      liveNlp.extractedPriority === 'Important' ||
-      liveNlp.extractedCategory !== 'Personal');
+  // Handle Quick Add from QuickCaptureBar
+  const handleQuickAdd = async (rawTitle: string) => {
+    const trimmed = rawTitle.trim();
+    if (!trimmed) return;
 
-  const handleQuickAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const raw = quickInput.trim();
-    if (!raw || isSubmitting) return;
+    const parsed = parseNudgeNlp(trimmed);
 
-    try {
-      setIsSubmitting(true);
-      const parsed = parseNudgeNlp(raw);
+    let dateLabel = parsed.extractedDate;
+    let startDateIso = parsed.startDateIso;
 
-      // Determine date and time labels
-      let dateLabel = parsed.extractedDate;
-      let startDateIso = parsed.startDateIso;
-
-      // If user didn't mention an explicit date in NLP and is looking at a non-today date:
-      if (!parsed.hasExplicitDateTime && selectedDateIso !== todayIso) {
-        if (selectedDateIso === getOffsetIso(1)) {
-          dateLabel = 'Tomorrow';
-          startDateIso = selectedDateIso;
-        } else {
-          dateLabel = selectedDateIso;
-          startDateIso = selectedDateIso;
-        }
+    if (!parsed.hasExplicitDateTime && selectedDateIso !== todayIso) {
+      if (selectedDateIso === getOffsetIso(1)) {
+        dateLabel = 'Tomorrow';
+        startDateIso = selectedDateIso;
+      } else {
+        dateLabel = selectedDateIso;
+        startDateIso = selectedDateIso;
       }
-
-      await onCreateTask({
-        title: parsed.cleanTitle || raw,
-        dateLabel,
-        startDate: startDateIso,
-        timeLabel: parsed.extractedTime,
-        category: parsed.extractedCategory,
-        priority: parsed.extractedPriority,
-        repeat: parsed.extractedRepeat,
-      });
-      setQuickInput('');
-    } finally {
-      setIsSubmitting(false);
     }
+
+    await onCreateTask({
+      title: parsed.cleanTitle || trimmed,
+      dateLabel,
+      startDate: startDateIso,
+      timeLabel: parsed.extractedTime,
+      category: parsed.extractedCategory,
+      priority: parsed.extractedPriority,
+      repeat: parsed.extractedRepeat,
+    });
   };
 
+  // Voice speech recognition
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
@@ -200,7 +182,7 @@ export const TodayPage: React.FC<TodayPageProps> = ({
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Voice input is not supported in this browser.");
+      alert('Voice input is not supported in this browser.');
       return;
     }
 
@@ -213,7 +195,7 @@ export const TodayPage: React.FC<TodayPageProps> = ({
     try {
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
-      recognition.interimResults = true;
+      recognition.interimResults = false;
       recognition.lang = 'en-US';
 
       recognition.onstart = () => {
@@ -221,10 +203,10 @@ export const TodayPage: React.FC<TodayPageProps> = ({
       };
 
       recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
-          .join('');
-        setQuickInput(transcript);
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          handleQuickAdd(transcript);
+        }
       };
 
       recognition.onerror = (event: any) => {
@@ -247,21 +229,20 @@ export const TodayPage: React.FC<TodayPageProps> = ({
   // Heading text
   const headingDateText = useMemo(() => {
     if (selectedDateIso === todayIso) {
-      return "Today's Gentle Nudges";
+      return "TODAY'S NUDGES";
     }
     if (selectedDateIso === getOffsetIso(1)) {
-      return "Tomorrow's Gentle Nudges";
+      return "TOMORROW'S NUDGES";
     }
     if (selectedDateIso === getOffsetIso(-1)) {
-      return "Yesterday's Gentle Nudges";
+      return "YESTERDAY'S NUDGES";
     }
     return selectedDate.toLocaleDateString('en-US', {
-      weekday: 'long',
+      weekday: 'short',
       month: 'short',
       day: 'numeric',
-      year: selectedDate.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
-    });
-  }, [selectedDateIso, todayIso, selectedDate, today]);
+    }).toUpperCase() + " NUDGES";
+  }, [selectedDateIso, todayIso, selectedDate]);
 
   const viewingMonthTitle = useMemo(() => {
     const d = new Date(viewingYear, viewingMonth, 1);
@@ -269,11 +250,12 @@ export const TodayPage: React.FC<TodayPageProps> = ({
   }, [viewingYear, viewingMonth]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Hero Parchment Banner */}
-      <section className="relative overflow-hidden rounded-[24px] bg-nudge-parchment dark:bg-nudge-parchment-dark border border-nudge-border/80 dark:border-nudge-border-dark/80 p-6 sm:p-7 shadow-xs">
-        <div className="absolute -right-8 -bottom-10 w-44 h-44 rounded-full bg-nudge-cream dark:bg-nudge-card-dark opacity-60 pointer-events-none" />
-
+    <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-300" data-testid="today_screen_list">
+      {/* 1. Hero Parchment Banner matching TodayScreen.kt */}
+      <section
+        className="relative overflow-hidden rounded-[24px] bg-nudge-parchment dark:bg-nudge-parchment-dark border border-nudge-border/80 dark:border-nudge-border-dark/80 p-5 sm:p-6 shadow-xs"
+        data-testid="today_hero_card"
+      >
         <div className="relative flex items-start justify-between gap-4">
           <div className="max-w-[76%] space-y-1">
             <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight">
@@ -282,7 +264,7 @@ export const TodayPage: React.FC<TodayPageProps> = ({
             <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-blue dark:text-nudge-blue-light font-normal leading-tight">
               your attention?
             </h1>
-            <p className="text-xs sm:text-sm text-nudge-text-secondary dark:text-nudge-text-secondary-dark pt-1">
+            <p className="text-xs sm:text-[13.5px] text-nudge-text-secondary dark:text-nudge-text-secondary-dark pt-1 leading-relaxed">
               A little reminder can go a long way.
             </p>
           </div>
@@ -291,6 +273,7 @@ export const TodayPage: React.FC<TodayPageProps> = ({
             onClick={handleJumpToToday}
             title="Return to Today"
             className="w-[54px] h-[54px] rounded-full bg-nudge-blue text-white flex flex-col items-center justify-center shrink-0 shadow-md hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+            data-testid="today_screen_date_badge"
           >
             <span className="text-[20px] font-bold leading-none">{dayNumber}</span>
             <span className="text-[9px] font-semibold tracking-wider opacity-90 mt-0.5 uppercase">
@@ -300,7 +283,7 @@ export const TodayPage: React.FC<TodayPageProps> = ({
         </div>
       </section>
 
-      {/* Date Navigation & Calendar Strip */}
+      {/* 2. Date Navigation & Calendar Strip */}
       <section className="space-y-2">
         {/* Month Navigation & Calendar Controls Bar */}
         <div className="flex items-center justify-between px-1">
@@ -370,7 +353,10 @@ export const TodayPage: React.FC<TodayPageProps> = ({
         )}
 
         {/* 7-Day Date Strip Component */}
-        <div className="bg-white dark:bg-nudge-card-dark rounded-2xl border border-nudge-border dark:border-nudge-border-dark p-1.5 sm:p-2 flex items-center justify-between shadow-2xs gap-0.5 sm:gap-1">
+        <div
+          className="bg-white dark:bg-nudge-card-dark rounded-2xl border border-nudge-border dark:border-nudge-border-dark p-1.5 sm:p-2 flex items-center justify-between shadow-2xs gap-0.5 sm:gap-1"
+          data-testid="date_strip"
+        >
           {dateStripDays.map((item) => {
             return (
               <button
@@ -413,74 +399,19 @@ export const TodayPage: React.FC<TodayPageProps> = ({
         </div>
       </section>
 
-      {/* Quick Add Bar with Natural Language & Voice Support matching QuickCaptureBar.kt */}
-      <section className="bg-white dark:bg-nudge-card-dark rounded-[18px] border border-nudge-border dark:border-nudge-border-dark p-2 shadow-xs space-y-1.5">
-        <form onSubmit={handleQuickAdd} className="flex items-center gap-2">
-          {/* LEFT: Microphone / voice recording button */}
-          <button
-            type="button"
-            onClick={handleToggleVoice}
-            className={`p-2 rounded-xl transition-all ${
-              isListening
-                ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 animate-pulse'
-                : 'text-nudge-blue hover:bg-nudge-blue/10 dark:hover:bg-nudge-blue/20'
-            }`}
-            title={isListening ? 'Listening…' : 'Speak reminder'}
-            data-testid="quick_capture_mic_button"
-          >
-            <Mic className="w-4 h-4 stroke-[2]" />
-          </button>
+      {/* 3. Single Quick Capture Bar matching Android QuickCaptureBar.kt */}
+      <QuickCaptureBar
+        onOpenComposer={(draft) => {
+          if (onOpenComposer) {
+            onOpenComposer(draft, selectedDateIso === todayIso ? 'Today' : selectedDateIso);
+          }
+        }}
+        onQuickAdd={handleQuickAdd}
+        onStartVoice={handleToggleVoice}
+        isListening={isListening}
+      />
 
-          <input
-            type="text"
-            value={quickInput}
-            onChange={(e) => setQuickInput(e.target.value)}
-            placeholder="Add a quick thought…"
-            disabled={isSubmitting}
-            className="flex-1 px-2 py-2 text-sm bg-transparent text-nudge-text-primary dark:text-nudge-text-primary-dark placeholder:text-nudge-text-muted focus:outline-none"
-            data-testid="quick_capture_input"
-          />
-          <button
-            type="submit"
-            className="p-2 rounded-xl bg-nudge-blue text-white hover:bg-nudge-blue-light transition-colors disabled:opacity-40"
-            disabled={!quickInput.trim() || isSubmitting}
-            title="Add reminder"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
-
-        {/* Live NLP Preview Pill */}
-        {showLivePreview && (
-          <div className="flex flex-wrap items-center gap-1.5 px-3 py-1 text-[11px] text-nudge-text-secondary dark:text-nudge-text-secondary-dark border-t border-nudge-border/40 dark:border-nudge-border-dark/40 pt-1.5">
-            <span className="flex items-center gap-1 text-nudge-blue font-semibold">
-              <Sparkles className="w-3 h-3" />
-              <span>Smart detection:</span>
-            </span>
-            <span className="px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark">
-              🗓 {liveNlp.extractedDate}
-            </span>
-            <span className="px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark">
-              ⏰ {liveNlp.extractedTime}
-            </span>
-            <span className="px-2 py-0.5 rounded-md bg-nudge-parchment dark:bg-nudge-parchment-dark">
-              🏷 {liveNlp.extractedCategory}
-            </span>
-            {liveNlp.extractedPriority === 'Important' && (
-              <span className="px-2 py-0.5 rounded-md bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 font-semibold">
-                🔥 Important
-              </span>
-            )}
-            {liveNlp.extractedRepeat !== 'Does not repeat' && (
-              <span className="px-2 py-0.5 rounded-md bg-nudge-blue/10 text-nudge-blue font-semibold">
-                🔄 {liveNlp.extractedRepeat}
-              </span>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* Important Dates / Observances for Selected Date */}
+      {/* 4. Observances & Celebrations for Selected Date (if any) */}
       {eventsForSelectedDate.length > 0 && (
         <section className="space-y-1.5">
           <div className="flex items-center gap-1.5 px-1">
@@ -504,27 +435,30 @@ export const TodayPage: React.FC<TodayPageProps> = ({
         </section>
       )}
 
-      {/* Gentle Nudges List matching TodayScreen.kt */}
+      {/* 5. Reminders Section matching TodayScreen.kt */}
       <section className="space-y-3">
-        {/* Date-specific Header matching TodayScreen.kt */}
-        <div className="flex items-center justify-between px-1">
+        {/* Section Header */}
+        <div className="flex items-center justify-between px-1 pt-1">
           <div>
             <span className="text-[11px] font-bold tracking-[1.2px] uppercase text-nudge-text-secondary dark:text-nudge-text-secondary-dark block">
-              {selectedDateIso === todayIso ? "TODAY'S NUDGES" : headingDateText.toUpperCase()}
+              {headingDateText}
             </span>
             <h2 className="font-editorial-serif text-2xl font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark mt-0.5">
               Keep these close
             </h2>
           </div>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-nudge-blue/10 text-nudge-blue dark:bg-nudge-blue/20 dark:text-nudge-blue-light">
-            {activeTasks.length} active
-          </span>
+          {activeTasks.length > 0 && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-nudge-parchment dark:bg-nudge-parchment-dark text-nudge-blue dark:text-nudge-blue-light border border-nudge-border/60 dark:border-nudge-border-dark/60">
+              {activeTasks.length} to do
+            </span>
+          )}
         </div>
 
+        {/* Reminders List or Empty State */}
         {activeTasks.length === 0 && completedTasks.length === 0 ? (
-          <div className="text-center py-10 bg-white dark:bg-nudge-card-dark rounded-[18px] border border-nudge-border dark:border-nudge-border-dark p-6 space-y-1.5 shadow-2xs">
+          <div className="text-center py-10 bg-white dark:bg-nudge-card-dark rounded-[20px] border border-nudge-border dark:border-nudge-border-dark p-6 space-y-1.5 shadow-2xs">
             <p className="text-sm font-medium text-nudge-text-primary dark:text-nudge-text-primary-dark">
-              Your day is quiet and clear.
+              Nothing to remember right now.
             </p>
             <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
               Take a breath, or write down a gentle thought.
