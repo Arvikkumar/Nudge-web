@@ -1,17 +1,18 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Bell,
   Clock,
   Sliders,
+  Volume2,
+  ShieldCheck,
   Sparkles,
   Download,
   Upload,
+  RotateCcw,
   Trash2,
   FileDown,
-  ShieldCheck,
-  RotateCcw,
-  Volume2,
-  Sun,
+  History,
+  Calendar,
 } from 'lucide-react';
 import { NudgeSettings, EventReminderOption, ThemeMode } from '../types';
 import { getNotificationPermission, requestNotificationPermission } from '../utils/reminderScheduler';
@@ -29,6 +30,14 @@ import {
   ClearConfirmModal,
   ImportErrorModal,
 } from '../components/settings/DataManagementModals';
+import { ThemeToggleSwitch } from '../components/settings/ThemeToggleSwitch';
+import { MinimalAnalogClock } from '../components/settings/MinimalAnalogClock';
+import { MinimalAccordionSection } from '../components/settings/MinimalAccordionSection';
+import {
+  SettingToggleRow,
+  SettingActionRow,
+  SettingInfoRow,
+} from '../components/settings/SettingRow';
 
 interface SettingsPageProps {
   settings: NudgeSettings;
@@ -48,11 +57,42 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     () => getNotificationPermission()
   );
 
+  // Accordion state: Only the selected accordion expands ('alerts' | 'backup' | 'history' | null)
+  const [expandedSection, setExpandedSection] = useState<'alerts' | 'backup' | 'history' | null>('alerts');
+
+  // Backup & schedule states
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('nudge_auto_backup_enabled') === 'true';
+  });
+  const [lastManualBackupText, setLastManualBackupText] = useState<string>(() => {
+    return localStorage.getItem('nudge_last_manual_backup_relative') || 'None recorded';
+  });
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDay, setScheduleDay] = useState<string>(() => {
+    return localStorage.getItem('nudge_auto_backup_day') || 'Every Sunday';
+  });
+  const [scheduleTime, setScheduleTime] = useState<string>(() => {
+    return localStorage.getItem('nudge_auto_backup_time') || '23:00';
+  });
+
   const showFeedback = (msg: string) => {
     setFeedbackMessage(msg);
     setTimeout(() => {
       setFeedbackMessage(null);
     }, 2500);
+  };
+
+  // Theme resolution
+  const isDark =
+    settings.themeMode === 'dark' ||
+    (settings.themeMode === 'system' &&
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  const handleToggleTheme = () => {
+    const nextMode: ThemeMode = isDark ? 'light' : 'dark';
+    onUpdateSettings({ themeMode: nextMode });
+    showFeedback(`Switched to ${nextMode} theme`);
   };
 
   const handleRequestPermission = async () => {
@@ -64,11 +104,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     } else if (res === 'denied') {
       showFeedback('Notifications blocked in browser settings');
     }
-  };
-
-  const handleSetThemeMode = (mode: ThemeMode) => {
-    onUpdateSettings({ themeMode: mode });
-    showFeedback(`Switched to ${mode} theme`);
   };
 
   const handleToggleNotifications = () => {
@@ -122,6 +157,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       setIsExporting(true);
       const backup = await createBackupFile();
       const filename = downloadBackupFile(backup);
+      const timeStr = 'Just now';
+      setLastManualBackupText(timeStr);
+      localStorage.setItem('nudge_last_manual_backup_relative', timeStr);
       showFeedback(`Backup downloaded: ${filename}`);
     } catch (err) {
       console.error('Failed to export data:', err);
@@ -156,7 +194,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         } else {
           setImportErrorMessage(result.error || 'Invalid backup format.');
         }
-      } catch (err) {
+      } catch {
         setImportErrorMessage('Failed to read backup file.');
       }
     };
@@ -195,8 +233,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     }
   };
 
+  const toggleSection = (section: 'alerts' | 'backup' | 'history') => {
+    setExpandedSection((prev) => (prev === section ? null : section));
+  };
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-300" data-testid="settings_screen">
+    <div
+      className="space-y-6 animate-in fade-in duration-300 max-w-2xl mx-auto pb-12"
+      data-testid="settings_screen"
+    >
       {/* Toast Notification */}
       {feedbackMessage && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-nudge-blue text-white text-xs sm:text-sm font-semibold shadow-lg transition-all animate-in fade-in slide-in-from-top-3">
@@ -204,412 +249,269 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
       )}
 
-      {/* Page Heading */}
-      <div className="pt-1 pb-1">
-        <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight">
-          Settings that
-        </h1>
-        <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-blue dark:text-nudge-blue-light font-normal leading-tight">
-          fit your rhythm.
-        </h1>
-        <p className="text-sm text-nudge-text-secondary dark:text-nudge-text-secondary-dark pt-1">
-          Customize your gentle rhythm, alerts, and mindful space.
-        </p>
+      {/* Page Heading & Day/Night Theme Toggle Switch (Android Layout) */}
+      <div className="pt-2 pb-1 flex items-center justify-between">
+        <div>
+          <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-text-primary dark:text-nudge-text-primary-dark font-normal leading-tight tracking-[-0.5px]">
+            Settings that
+          </h1>
+          <h1 className="font-editorial-serif text-3xl sm:text-4xl text-nudge-blue dark:text-nudge-blue-light font-normal leading-tight tracking-[-0.5px]">
+            fit your rhythm.
+          </h1>
+        </div>
+
+        {/* Day/Night Theme Toggle Switch */}
+        <ThemeToggleSwitch
+          isDark={isDark}
+          onToggle={handleToggleTheme}
+        />
       </div>
 
-      {/* 1. Appearance & Theme */}
-      <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-xs space-y-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-          Appearance
-        </h2>
+      {/* Clean, minimal accordion sections: Alerts, Backup, History */}
+      <div
+        className="w-full space-y-1"
+        data-testid="minimal_accordion_container"
+      >
+        {/* 1. Alerts Section */}
+        <MinimalAccordionSection
+          title="Alerts"
+          isExpanded={expandedSection === 'alerts'}
+          onToggle={() => toggleSection('alerts')}
+          testTag="alerts_accordion_section"
+        >
+          {/* Notifications Toggle */}
+          <SettingToggleRow
+            icon={<Bell className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+            title="Notifications"
+            description="A little tap when something matters"
+            checked={settings.notificationsEnabled}
+            onCheckedChange={handleToggleNotifications}
+            testTag="toggle_notifications"
+          />
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-              <Sun className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                Theme
-              </p>
-              <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                Light, dark, or sync with your system
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 p-1 rounded-2xl bg-nudge-parchment/70 dark:bg-nudge-parchment-dark/70 border border-nudge-border/60 dark:border-nudge-border-dark/60">
-            {(['light', 'dark', 'system'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => handleSetThemeMode(mode)}
-                className={`py-1.5 px-3 rounded-xl text-xs font-semibold capitalize transition-all ${
-                  settings.themeMode === mode
-                    ? 'bg-white dark:bg-nudge-card-dark text-nudge-blue dark:text-nudge-blue shadow-xs'
-                    : 'text-nudge-text-secondary dark:text-nudge-text-secondary-dark hover:text-nudge-text-primary dark:hover:text-nudge-text-primary-dark'
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 2. Alerts & Reminders */}
-      <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-xs space-y-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-          Alerts & Reminders
-        </h2>
-
-        {/* Notifications Toggle */}
-        <div className="flex items-center justify-between py-2">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-nudge-blue/10 text-nudge-blue flex items-center justify-center shrink-0">
-              <Bell className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                Notifications
-              </p>
-              <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                A little tap when something matters
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={settings.notificationsEnabled}
-            onClick={handleToggleNotifications}
-            data-testid="toggle_notifications"
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              settings.notificationsEnabled ? 'bg-nudge-blue' : 'bg-zinc-300 dark:bg-zinc-700'
-            }`}
-          >
-            <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                settings.notificationsEnabled ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
-        </div>
-
-        <div className="h-[1px] bg-nudge-border/40 dark:bg-nudge-border-dark/40" />
-
-        {/* Default Snooze */}
-        <div className="flex items-center justify-between py-2">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-nudge-parchment text-nudge-text-secondary dark:bg-zinc-800 dark:text-zinc-300 flex items-center justify-center shrink-0">
-              <Clock className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                Default snooze
-              </p>
-              <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                A little breathing room
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
+          {/* Default Snooze */}
+          <SettingActionRow
+            icon={<Clock className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+            title="Default snooze"
+            description="A little breathing room"
+            actionText={`${settings.defaultSnooze || '15 minutes'} ⌵`}
             onClick={handleCycleSnooze}
-            data-testid="action_default_snooze"
-            className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-nudge-parchment/80 dark:bg-nudge-parchment-dark/80 text-nudge-text-primary dark:text-nudge-text-primary-dark border border-nudge-border/60 dark:border-nudge-border-dark/60 hover:bg-nudge-parchment transition-all cursor-pointer"
-          >
-            {settings.defaultSnooze || '15 minutes'} ⌵
-          </button>
-        </div>
+            testTag="action_default_snooze"
+          />
 
-        <div className="h-[1px] bg-nudge-border/40 dark:bg-nudge-border-dark/40" />
+          {/* Nudge Again */}
+          <SettingToggleRow
+            icon={<Sliders className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+            title="Nudge again"
+            description="Ask again, softly, if I miss it"
+            checked={settings.nudgeAgainEnabled}
+            onCheckedChange={handleToggleNudgeAgain}
+            testTag="toggle_nudge_again"
+          />
 
-        {/* Nudge Again */}
-        <div className="flex items-center justify-between py-2">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-nudge-parchment text-nudge-text-secondary dark:bg-zinc-800 dark:text-zinc-300 flex items-center justify-center shrink-0">
-              <Sliders className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                Nudge again
-              </p>
-              <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                Ask again, softly, if I miss it
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={settings.nudgeAgainEnabled}
-            onClick={handleToggleNudgeAgain}
-            data-testid="toggle_nudge_again"
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              settings.nudgeAgainEnabled ? 'bg-nudge-blue' : 'bg-zinc-300 dark:bg-zinc-700'
-            }`}
-          >
-            <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                settings.nudgeAgainEnabled ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
-        </div>
-
-        <div className="h-[1px] bg-nudge-border/40 dark:bg-nudge-border-dark/40" />
-
-        {/* Gentle Chime Sound Setting */}
-        <div className="flex items-center justify-between py-2">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-              <Volume2 className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                Gentle chime
-              </p>
-              <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                Soothing bell tone played on reminder alerts
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
+          {/* Gentle Chime Sound Setting */}
+          <SettingActionRow
+            icon={<Volume2 className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+            title="Gentle chime"
+            description="Soothing bell tone played on reminder alerts"
+            actionText="Test Chime"
             onClick={handleTestChime}
-            data-testid="action_test_chime"
-            className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-nudge-parchment/80 dark:bg-nudge-parchment-dark/80 text-nudge-text-primary dark:text-nudge-text-primary-dark border border-nudge-border/60 dark:border-nudge-border-dark/60 hover:bg-nudge-parchment transition-all cursor-pointer flex items-center gap-1.5"
-          >
-            <Volume2 className="w-3.5 h-3.5 text-nudge-blue" />
-            Test Chime
-          </button>
-        </div>
+            testTag="action_test_chime"
+          />
 
-        {/* Browser Permission Row */}
-        {browserPermission !== 'granted' && (
-          <>
-            <div className="h-[1px] bg-nudge-border/40 dark:bg-nudge-border-dark/40" />
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                    Browser notifications
-                  </p>
-                  <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                    {browserPermission === 'denied'
-                      ? 'Notifications blocked in browser preferences'
-                      : 'Enable browser alerts for background reminders'}
-                  </p>
-                </div>
+          {/* Celebrations & Observances Advance Reminders */}
+          <div className="py-3 sm:py-3.5">
+            <div className="flex items-center gap-3.5 mb-2.5">
+              <div className="w-[38px] h-[38px] rounded-full flex items-center justify-center shrink-0 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <Sparkles className="w-5 h-5" />
               </div>
-              <button
-                type="button"
-                onClick={handleRequestPermission}
-                disabled={browserPermission === 'denied'}
-                data-testid="action_browser_permission"
-                className={`py-1.5 px-3 rounded-xl text-xs font-semibold border transition-all ${
-                  browserPermission === 'denied'
-                    ? 'opacity-50 cursor-not-allowed bg-zinc-100 text-zinc-500 border-zinc-200'
-                    : 'bg-nudge-blue text-white border-nudge-blue shadow-xs hover:bg-blue-600 cursor-pointer'
-                }`}
-              >
-                {browserPermission === 'denied' ? 'Blocked' : 'Enable'}
-              </button>
+              <div>
+                <p className="text-sm sm:text-[15px] font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark tracking-[-0.1px]">
+                  Celebrations & Observances
+                </p>
+                <p className="text-xs sm:text-[13px] text-nudge-text-secondary dark:text-nudge-text-secondary-dark pt-0.5 leading-snug">
+                  Gentle advance reminders for important calendar observances
+                </p>
+              </div>
             </div>
-          </>
-        )}
-      </section>
 
-      {/* 3. Celebrations & Observances */}
-      <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-xs space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-              Celebrations & Observances
-            </h2>
-            <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-              Gentle advance reminders for important calendar observances
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-          {(['off', '1_day', '2_days', 'custom'] as EventReminderOption[]).map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => handleSelectEventReminderOption(opt)}
-              className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                settings.eventReminderOption === opt
-                  ? 'bg-nudge-blue text-white border-nudge-blue shadow-xs'
-                  : 'bg-white dark:bg-nudge-card-dark text-nudge-text-secondary dark:text-nudge-text-secondary-dark border-nudge-border dark:border-nudge-border-dark hover:border-nudge-blue'
-              }`}
-            >
-              {opt === 'off' && 'Off'}
-              {opt === '1_day' && '1 Day Before'}
-              {opt === '2_days' && '2 Days Before'}
-              {opt === 'custom' && `${settings.eventReminderCustomDays || 3} Days`}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* 4. Data Management & Backup */}
-      <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-xs space-y-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-          Data & Storage
-        </h2>
-
-        {/* Create Backup */}
-        <div className="flex items-center justify-between py-2">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <Download className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                Create local backup
-              </p>
-              <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                Save your thoughts, always yours
-              </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 pl-[52px]">
+              {(['off', '1_day', '2_days', 'custom'] as EventReminderOption[]).map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => handleSelectEventReminderOption(opt)}
+                  className={`py-1.5 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    settings.eventReminderOption === opt
+                      ? 'bg-nudge-blue text-white border-nudge-blue shadow-xs'
+                      : 'bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 text-nudge-text-secondary dark:text-nudge-text-secondary-dark border-nudge-border/60 dark:border-nudge-border-dark/60 hover:border-nudge-blue'
+                  }`}
+                >
+                  {opt === 'off' && 'Off'}
+                  {opt === '1_day' && '1 Day Before'}
+                  {opt === '2_days' && '2 Days Before'}
+                  {opt === 'custom' && `${settings.eventReminderCustomDays || 3} Days`}
+                </button>
+              ))}
             </div>
           </div>
-          <button
-            type="button"
+
+          {/* Browser Permission Row */}
+          {browserPermission !== 'granted' && (
+            <SettingActionRow
+              icon={<ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+              iconBgColor="bg-emerald-500/10"
+              iconTextColor="text-emerald-600 dark:text-emerald-400"
+              title="Browser notifications"
+              description={
+                browserPermission === 'denied'
+                  ? 'Notifications blocked in browser preferences'
+                  : 'Enable browser alerts for background reminders'
+              }
+              actionText={browserPermission === 'denied' ? 'Blocked' : 'Enable'}
+              onClick={handleRequestPermission}
+              disabled={browserPermission === 'denied'}
+              testTag="action_browser_permission"
+            />
+          )}
+        </MinimalAccordionSection>
+
+        {/* 2. Backup Section */}
+        <MinimalAccordionSection
+          title="Backup"
+          isExpanded={expandedSection === 'backup'}
+          onToggle={() => toggleSection('backup')}
+          testTag="backup_accordion_section"
+        >
+          {/* Last Manual Backup */}
+          <SettingInfoRow
+            icon={<Upload className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+            title="Last manual backup"
+            description="Confirmed timestamp of your latest manual export"
+            valueText={lastManualBackupText}
+          />
+
+          {/* Last Automatic Backup */}
+          <SettingInfoRow
+            icon={<History className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+            title="Last automatic backup"
+            description="Confirmed timestamp of your latest automatic backup"
+            valueText={autoBackupEnabled ? 'Scheduled' : 'None yet'}
+          />
+
+          {/* Automatic Backup Toggle */}
+          <SettingToggleRow
+            icon={<RotateCcw className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+            title="Automatic Backup"
+            description="Automatically create a local backup of my Nudge data"
+            checked={autoBackupEnabled}
+            onCheckedChange={(val) => {
+              setAutoBackupEnabled(val);
+              localStorage.setItem('nudge_auto_backup_enabled', String(val));
+              showFeedback(val ? 'Automatic backup active' : 'Automatic backup turned off');
+            }}
+          />
+
+          {/* Recurring Schedule Details when Automatic Backup is active */}
+          {autoBackupEnabled && (
+            <>
+              <SettingActionRow
+                icon={<Calendar className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+                title="Backup schedule"
+                description="Recurring local backup schedule"
+                actionText={`${scheduleDay} at ${scheduleTime} ⌵`}
+                onClick={() => setShowScheduleModal(true)}
+              />
+              <SettingInfoRow
+                icon={<Clock className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+                title="Next backup"
+                description="Scheduled automatic local backup"
+                valueText={`${scheduleDay.replace('Every ', '')} ${scheduleTime}`}
+              />
+            </>
+          )}
+
+          {/* Create Local Backup */}
+          <SettingActionRow
+            icon={<Download className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+            title="Create Local Backup"
+            description="Export all your notes, pursuits, settings, and attachments to a safe backup file"
+            actionText={isExporting ? 'Exporting…' : 'Backup'}
             onClick={handleExportData}
             disabled={isExporting}
-            data-testid="action_create_backup"
-            className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-nudge-parchment/80 dark:bg-nudge-parchment-dark/80 text-nudge-text-primary dark:text-nudge-text-primary-dark border border-nudge-border/60 dark:border-nudge-border-dark/60 hover:bg-nudge-parchment transition-all cursor-pointer"
-          >
-            {isExporting ? 'Exporting…' : 'Create Backup'}
-          </button>
-        </div>
+            testTag="action_create_backup"
+          />
 
-        <div className="h-[1px] bg-nudge-border/40 dark:bg-nudge-border-dark/40" />
-
-        {/* Restore Backup */}
-        <div className="flex items-center justify-between py-2">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-              <Upload className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                Restore backup
-              </p>
-              <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                Bring back a saved backup
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
+          {/* Restore Local Backup */}
+          <SettingActionRow
+            icon={<Upload className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+            title="Restore Local Backup"
+            description="Recover notes, pursuits, and attachments from a previously saved backup file"
+            actionText="Restore"
             onClick={handleTriggerImport}
-            data-testid="action_restore_backup"
-            className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-nudge-parchment/80 dark:bg-nudge-parchment-dark/80 text-nudge-text-primary dark:text-nudge-text-primary-dark border border-nudge-border/60 dark:border-nudge-border-dark/60 hover:bg-nudge-parchment transition-all cursor-pointer"
-          >
-            Restore
-          </button>
-        </div>
+            testTag="action_restore_backup"
+          />
 
-        <div className="h-[1px] bg-nudge-border/40 dark:bg-nudge-border-dark/40" />
-
-        {/* Clear Data */}
-        <div className="flex items-center justify-between py-2">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
-              <Trash2 className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                Clear all data
-              </p>
-              <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                Start fresh with a clean slate
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
+          {/* Clear all data */}
+          <SettingActionRow
+            icon={<Trash2 className="w-5 h-5 text-rose-600 dark:text-rose-400" />}
+            iconBgColor="bg-rose-500/10"
+            iconTextColor="text-rose-600 dark:text-rose-400"
+            title="Clear all data"
+            description="Start fresh with a clean slate"
+            actionText="Reset"
+            isDestructive={true}
             onClick={() => setIsClearModalOpen(true)}
-            data-testid="action_clear_data"
-            className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 transition-all cursor-pointer"
-          >
-            Reset
-          </button>
-        </div>
-      </section>
+            testTag="action_clear_data"
+          />
+        </MinimalAccordionSection>
 
-      {/* 5. History & Archive */}
-      <section className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-nudge-card-dark border border-nudge-border dark:border-nudge-border-dark shadow-xs space-y-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-          History
-        </h2>
-
-        {/* Recently Deleted */}
-        <div className="flex items-center justify-between py-2">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-              <RotateCcw className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                Recently deleted
-              </p>
-              <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                Recover deleted reminders
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
+        {/* 3. History Section */}
+        <MinimalAccordionSection
+          title="History"
+          isExpanded={expandedSection === 'history'}
+          onToggle={() => toggleSection('history')}
+          testTag="history_accordion_section"
+        >
+          {/* Recently Deleted */}
+          <SettingActionRow
+            icon={<RotateCcw className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+            title="Recently Deleted"
+            description="Recover deleted reminders within 30 days"
+            actionText={deletedTasksCount > 0 ? `${deletedTasksCount} items ›` : 'View ›'}
             onClick={() => {
               if (onOpenRecentlyDeleted) onOpenRecentlyDeleted();
             }}
-            data-testid="action_recently_deleted"
-            className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-nudge-parchment/80 dark:bg-nudge-parchment-dark/80 text-nudge-text-primary dark:text-nudge-text-primary-dark border border-nudge-border/60 dark:border-nudge-border-dark/60 hover:bg-nudge-parchment transition-all cursor-pointer"
-          >
-            {deletedTasksCount} items ›
-          </button>
-        </div>
+            testTag="action_recently_deleted"
+          />
 
-        <div className="h-[1px] bg-nudge-border/40 dark:bg-nudge-border-dark/40" />
-
-        {/* Export PDF */}
-        <div className="flex items-center justify-between py-2">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-              <FileDown className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
-                Export history report
-              </p>
-              <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
-                Comprehensive summary of your gentle nudges
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
+          {/* Export History (PDF) */}
+          <SettingActionRow
+            icon={<FileDown className="w-5 h-5 text-nudge-blue dark:text-nudge-blue-light" />}
+            title="Export History (PDF)"
+            description="Download a complete, offline PDF copy of all your completed & pending notes"
+            actionText="Export PDF"
             onClick={() => {
               window.location.hash = 'hours';
             }}
-            data-testid="action_export_pdf"
-            className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-nudge-parchment/80 dark:bg-nudge-parchment-dark/80 text-nudge-text-primary dark:text-nudge-text-primary-dark border border-nudge-border/60 dark:border-nudge-border-dark/60 hover:bg-nudge-parchment transition-all cursor-pointer"
-          >
-            Export PDF ›
-          </button>
-        </div>
-      </section>
+            testTag="action_export_pdf"
+          />
+        </MinimalAccordionSection>
+      </div>
+
+      {/* Brand Signature Quote Footer */}
+      <div className="pt-10 pb-2 text-center select-none">
+        <p className="font-editorial-serif italic text-[13.5px] leading-relaxed text-nudge-text-secondary/80 dark:text-nudge-text-secondary-dark/80 max-w-sm mx-auto">
+          &ldquo;A jack of all trades is master of none,
+          <br />
+          but often better than a master of one.&rdquo;
+        </p>
+      </div>
+
+      {/* Real-time Minimal Analog Clock Footer */}
+      <div className="pt-4 pb-8 flex items-center justify-center select-none">
+        <MinimalAnalogClock size={200} />
+      </div>
 
       {/* Hidden File Input for Backup Import */}
       <input
@@ -620,6 +522,63 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         className="hidden"
         data-testid="backup_file_input"
       />
+
+      {/* Backup Schedule Selection Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-white dark:bg-nudge-card-dark rounded-3xl border border-nudge-border dark:border-nudge-border-dark p-6 space-y-4 shadow-xl">
+            <h3 className="text-base font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
+              Automatic Backup Schedule
+            </h3>
+            <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
+              Select recurring day and time to generate a local backup:
+            </p>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-nudge-blue">Frequency / Day:</label>
+              <select
+                value={scheduleDay}
+                onChange={(e) => {
+                  setScheduleDay(e.target.value);
+                  localStorage.setItem('nudge_auto_backup_day', e.target.value);
+                }}
+                className="w-full py-2 px-3 rounded-xl border border-nudge-border dark:border-nudge-border-dark bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 text-xs font-medium text-nudge-text-primary dark:text-nudge-text-primary-dark outline-none"
+              >
+                {['Every day', 'Every Sunday', 'Every Monday', 'Every Tuesday', 'Every Wednesday', 'Every Thursday', 'Every Friday', 'Every Saturday'].map(
+                  (d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-nudge-blue">Time:</label>
+              <input
+                type="time"
+                value={scheduleTime}
+                onChange={(e) => {
+                  setScheduleTime(e.target.value);
+                  localStorage.setItem('nudge_auto_backup_time', e.target.value);
+                }}
+                className="w-full py-2 px-3 rounded-xl border border-nudge-border dark:border-nudge-border-dark bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 text-xs font-medium text-nudge-text-primary dark:text-nudge-text-primary-dark outline-none"
+              />
+            </div>
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowScheduleModal(false);
+                  showFeedback('Backup schedule saved');
+                }}
+                className="py-1.5 px-4 rounded-xl text-xs font-semibold bg-nudge-blue text-white shadow-xs hover:bg-blue-600 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation & Error Modals */}
       {isImportModalOpen && importValidation && (
