@@ -531,29 +531,91 @@ export const HoursPage: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Quick action button */}
-                        <div className="shrink-0">
+                        {/* Quick action buttons matching Android */}
+                        <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                           {isDone ? (
-                            <span className="px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-200/50">
+                            <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold border border-emerald-200/50 dark:border-emerald-800/40">
                               ✓ Target Met
                             </span>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                await db.addTimeRecord({
-                                  pursuitId: p.id,
-                                  date: todayIso,
-                                  minutes: remainingMins,
-                                });
-                                await addManualHours(p.id, remainingMins / 60);
-                                await loadRecords();
-                                window.dispatchEvent(new Event('nudge-data-changed'));
-                              }}
-                              className="px-3 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 text-nudge-blue text-xs font-bold transition-colors cursor-pointer border border-blue-200/50 dark:border-blue-900/40"
-                            >
-                              + Full Target
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                title="Add 15 minutes"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await db.addTimeRecord({
+                                    pursuitId: p.id,
+                                    date: todayIso,
+                                    minutes: 15,
+                                  });
+                                  await addManualHours(p.id, 0.25);
+                                  await loadRecords();
+                                  window.dispatchEvent(new Event('nudge-data-changed'));
+                                }}
+                                className="px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-nudge-blue text-[11px] font-semibold transition-colors cursor-pointer border border-blue-200/40 dark:border-blue-800/30"
+                              >
+                                +15m
+                              </button>
+
+                              <button
+                                type="button"
+                                title="Add 30 minutes"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await db.addTimeRecord({
+                                    pursuitId: p.id,
+                                    date: todayIso,
+                                    minutes: 30,
+                                  });
+                                  await addManualHours(p.id, 0.5);
+                                  await loadRecords();
+                                  window.dispatchEvent(new Event('nudge-data-changed'));
+                                }}
+                                className="px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-nudge-blue text-[11px] font-semibold transition-colors cursor-pointer border border-blue-200/40 dark:border-blue-800/30"
+                              >
+                                +30m
+                              </button>
+
+                              <button
+                                type="button"
+                                title="Add 1 hour"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await db.addTimeRecord({
+                                    pursuitId: p.id,
+                                    date: todayIso,
+                                    minutes: 60,
+                                  });
+                                  await addManualHours(p.id, 1.0);
+                                  await loadRecords();
+                                  window.dispatchEvent(new Event('nudge-data-changed'));
+                                }}
+                                className="hidden sm:inline-flex px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-nudge-blue text-[11px] font-semibold transition-colors cursor-pointer border border-blue-200/40 dark:border-blue-800/30"
+                              >
+                                +1h
+                              </button>
+
+                              <button
+                                type="button"
+                                title="Log full daily target"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  const minsToAdd = remainingMins > 0 ? remainingMins : dailyTargetMins;
+                                  await db.addTimeRecord({
+                                    pursuitId: p.id,
+                                    date: todayIso,
+                                    minutes: minsToAdd,
+                                  });
+                                  await addManualHours(p.id, minsToAdd / 60);
+                                  await loadRecords();
+                                  window.dispatchEvent(new Event('nudge-data-changed'));
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-nudge-blue text-[11px] font-bold transition-colors cursor-pointer border border-blue-200/50 dark:border-blue-900/40"
+                              >
+                                + Full Target
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>

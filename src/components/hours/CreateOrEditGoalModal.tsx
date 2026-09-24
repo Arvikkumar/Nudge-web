@@ -45,7 +45,6 @@ export const CreateOrEditGoalModal: React.FC<CreateOrEditGoalModalProps> = ({
     if (goalToEdit) {
       setName(goalToEdit.name);
       setEmoji(goalToEdit.emoji || '🎯');
-      // Approximate daily minutes from monthly target hours
       const dMins = Math.round((goalToEdit.targetHours * 60) / 30);
       setDailyMinutes(dMins);
       const isPreset = PRESET_MINUTES.some((p) => p.mins === dMins);
@@ -72,7 +71,6 @@ export const CreateOrEditGoalModal: React.FC<CreateOrEditGoalModalProps> = ({
     ? customHours * 60 + customMinutes
     : dailyMinutes;
 
-  // Monthly target hours = daily target minutes * 30 / 60 = dailyMinutes / 2
   const computedMonthlyTargetHours = Math.max(1, Math.round(currentDailyMins / 2));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,8 +93,11 @@ export const CreateOrEditGoalModal: React.FC<CreateOrEditGoalModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-nudge-card-dark rounded-3xl border border-nudge-border dark:border-nudge-border-dark p-6 w-full max-w-md shadow-xl space-y-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-nudge-card-dark rounded-t-[28px] sm:rounded-3xl border border-nudge-border/80 dark:border-nudge-border-dark/80 p-5 sm:p-6 w-full max-w-md shadow-xl space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
+        {/* Mobile Drag Handle */}
+        <div className="w-10 h-1 rounded-full bg-neutral-300 dark:bg-neutral-700 mx-auto sm:hidden mb-1" />
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <h3 className="font-editorial-serif text-2xl font-normal text-nudge-text-primary dark:text-nudge-text-primary-dark">
@@ -105,7 +106,7 @@ export const CreateOrEditGoalModal: React.FC<CreateOrEditGoalModalProps> = ({
           <button
             type="button"
             onClick={onDismiss}
-            className="p-1.5 rounded-full hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark text-nudge-text-muted hover:text-nudge-text-primary"
+            className="p-1.5 rounded-full hover:bg-nudge-parchment dark:hover:bg-nudge-parchment-dark text-nudge-text-muted hover:text-nudge-text-primary cursor-pointer"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -140,7 +141,7 @@ export const CreateOrEditGoalModal: React.FC<CreateOrEditGoalModalProps> = ({
               </span>
             </div>
 
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex items-center gap-1.5 overflow-x-auto py-1 no-scrollbar">
               {PRESET_MINUTES.map((p) => {
                 const isSelected = !isCustomSelected && dailyMinutes === p.mins;
                 return (
@@ -151,7 +152,7 @@ export const CreateOrEditGoalModal: React.FC<CreateOrEditGoalModalProps> = ({
                       setIsCustomSelected(false);
                       setDailyMinutes(p.mins);
                     }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                       isSelected
                         ? 'bg-nudge-blue text-white shadow-2xs font-bold'
                         : 'bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 border border-nudge-border/60 dark:border-nudge-border-dark/60 text-nudge-text-primary dark:text-nudge-text-primary-dark hover:bg-nudge-parchment'
@@ -165,7 +166,7 @@ export const CreateOrEditGoalModal: React.FC<CreateOrEditGoalModalProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCustomSelected(true)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   isCustomSelected
                     ? 'bg-nudge-blue text-white shadow-2xs font-bold'
                     : 'bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 border border-nudge-border/60 dark:border-nudge-border-dark/60 text-nudge-text-primary dark:text-nudge-text-primary-dark hover:bg-nudge-parchment'

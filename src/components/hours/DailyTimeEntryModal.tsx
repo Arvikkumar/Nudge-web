@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Clock, Check } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { Pursuit, TimeGoalRecord } from '../../types';
 
 interface DailyTimeEntryModalProps {
@@ -26,7 +26,7 @@ export const DailyTimeEntryModal: React.FC<DailyTimeEntryModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Daily target in minutes (derived from monthly target: targetHours * 60 / 30 = targetHours * 2)
+  // Daily target in minutes
   const dailyTargetMinutes = Math.max(15, Math.round((pursuit.targetHours * 60) / 30));
 
   const presets = [
@@ -77,13 +77,16 @@ export const DailyTimeEntryModal: React.FC<DailyTimeEntryModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-nudge-card-dark rounded-3xl border border-nudge-border dark:border-nudge-border-dark p-6 w-full max-w-md shadow-xl space-y-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-nudge-card-dark rounded-t-[28px] sm:rounded-3xl border border-nudge-border/80 dark:border-nudge-border-dark/80 p-5 sm:p-6 w-full max-w-md shadow-xl space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
+        {/* Mobile Drag Handle */}
+        <div className="w-10 h-1 rounded-full bg-neutral-300 dark:bg-neutral-700 mx-auto sm:hidden mb-1" />
+
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-nudge-blue">
-              Record time for {pursuit.name}
+              RECORD TIME FOR {pursuit.name.toUpperCase()}
             </span>
             <h3 className="text-base font-bold text-nudge-text-primary dark:text-nudge-text-primary-dark mt-0.5">
               {formattedDate}
@@ -99,9 +102,9 @@ export const DailyTimeEntryModal: React.FC<DailyTimeEntryModalProps> = ({
           </button>
         </div>
 
-        {/* Big Duration Display Card */}
-        <div className="p-5 rounded-2xl bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 border border-nudge-border/70 dark:border-nudge-border-dark/70 text-center space-y-1">
-          <div className="text-3xl sm:text-4xl font-bold font-editorial-serif text-nudge-text-primary dark:text-nudge-text-primary-dark">
+        {/* Duration Display Card */}
+        <div className="p-4 rounded-2xl bg-nudge-parchment/60 dark:bg-nudge-parchment-dark/60 border border-nudge-border/70 dark:border-nudge-border-dark/70 text-center space-y-0.5">
+          <div className="text-3xl font-bold font-editorial-serif text-nudge-text-primary dark:text-nudge-text-primary-dark">
             {formatDisplayDuration(minutesLogged)}
           </div>
           <p className="text-xs text-nudge-text-secondary dark:text-nudge-text-secondary-dark">
@@ -109,22 +112,29 @@ export const DailyTimeEntryModal: React.FC<DailyTimeEntryModalProps> = ({
           </p>
         </div>
 
-        {/* Presets Pills */}
+        {/* Presets Horizontal Scrollable Chips */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-nudge-text-secondary dark:text-nudge-text-secondary-dark uppercase tracking-wider">
-            Quick Adjust
+            Quick Presets
           </label>
-          <div className="flex flex-wrap gap-1.5">
-            {presets.map((p, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setMinutesLogged(Math.max(0, p.mins))}
-                className="px-2.5 py-1 rounded-xl text-xs font-medium bg-white dark:bg-nudge-card-dark hover:bg-nudge-blue hover:text-white border border-nudge-border dark:border-nudge-border-dark text-nudge-text-primary dark:text-nudge-text-primary-dark transition-colors cursor-pointer"
-              >
-                {p.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-1 no-scrollbar">
+            {presets.map((p, idx) => {
+              const isSelected = minutesLogged === p.mins;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setMinutesLogged(Math.max(0, p.mins))}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                    isSelected
+                      ? 'bg-nudge-blue text-white shadow-2xs font-bold'
+                      : 'bg-nudge-parchment/50 dark:bg-nudge-parchment-dark/50 hover:bg-nudge-blue hover:text-white border border-nudge-border/60 dark:border-nudge-border-dark/60 text-nudge-text-primary dark:text-nudge-text-primary-dark'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -136,9 +146,9 @@ export const DailyTimeEntryModal: React.FC<DailyTimeEntryModalProps> = ({
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. Stoic reflection on resilience..."
+            placeholder="e.g. Deep focus session..."
             rows={2}
-            className="w-full px-3 py-2 rounded-xl border border-nudge-border dark:border-nudge-border-dark bg-transparent text-xs text-nudge-text-primary dark:text-nudge-text-primary-dark focus:outline-none focus:border-nudge-blue resize-none"
+            className="w-full px-3 py-2 rounded-xl border border-nudge-border/70 dark:border-nudge-border-dark/70 bg-transparent text-xs text-nudge-text-primary dark:text-nudge-text-primary-dark focus:outline-none focus:border-nudge-blue resize-none"
           />
         </div>
 

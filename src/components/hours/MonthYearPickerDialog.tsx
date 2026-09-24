@@ -26,8 +26,11 @@ export const MonthYearPickerDialog: React.FC<MonthYearPickerDialogProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-nudge-card-dark rounded-3xl border border-nudge-border dark:border-nudge-border-dark p-6 w-full max-w-sm shadow-xl space-y-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-nudge-card-dark rounded-t-[28px] sm:rounded-3xl border border-nudge-border/80 dark:border-nudge-border-dark/80 p-5 sm:p-6 w-full max-w-sm shadow-xl space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
+        {/* Mobile Drag Handle */}
+        <div className="w-10 h-1 rounded-full bg-neutral-300 dark:bg-neutral-700 mx-auto sm:hidden mb-1" />
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <h3 className="text-base font-semibold text-nudge-text-primary dark:text-nudge-text-primary-dark">
@@ -48,7 +51,7 @@ export const MonthYearPickerDialog: React.FC<MonthYearPickerDialogProps> = ({
           <button
             type="button"
             onClick={() => setSelectedYear((y) => y - 1)}
-            className="p-1.5 rounded-xl hover:bg-white dark:hover:bg-nudge-card-dark text-nudge-text-secondary hover:text-nudge-text-primary transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-white dark:hover:bg-nudge-card-dark text-nudge-text-secondary hover:text-nudge-text-primary transition-colors cursor-pointer"
             aria-label="Previous year"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -61,7 +64,7 @@ export const MonthYearPickerDialog: React.FC<MonthYearPickerDialogProps> = ({
           <button
             type="button"
             onClick={() => setSelectedYear((y) => y + 1)}
-            className="p-1.5 rounded-xl hover:bg-white dark:hover:bg-nudge-card-dark text-nudge-text-secondary hover:text-nudge-text-primary transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-white dark:hover:bg-nudge-card-dark text-nudge-text-secondary hover:text-nudge-text-primary transition-colors cursor-pointer"
             aria-label="Next year"
           >
             <ChevronRight className="w-5 h-5" />
@@ -83,9 +86,9 @@ export const MonthYearPickerDialog: React.FC<MonthYearPickerDialogProps> = ({
                   onSelectMonthYear(selectedYear, mNum);
                   onDismiss();
                 }}
-                className={`py-3 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-center ${
+                className={`py-2.5 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-center ${
                   isSelected
-                    ? 'bg-nudge-blue text-white shadow-2xs font-bold scale-[1.02]'
+                    ? 'bg-nudge-blue text-white shadow-2xs font-bold'
                     : 'bg-nudge-parchment/40 dark:bg-nudge-parchment-dark/40 hover:bg-nudge-blue/10 dark:hover:bg-nudge-blue/20 text-nudge-text-primary dark:text-nudge-text-primary-dark border border-nudge-border/50 dark:border-nudge-border-dark/50'
                 }`}
               >
